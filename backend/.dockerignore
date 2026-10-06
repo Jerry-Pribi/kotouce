@@ -1,0 +1,8 @@
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.pyo
+.env
+kotouce.db
+alembic/versions/__pycache__/

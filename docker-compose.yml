@@ -1,0 +1,64 @@
+services:
+
+  # ─────────────────────────────────────────
+  #  Databáze MySQL 8
+  # ─────────────────────────────────────────
+  mysql:
+    image: mysql:8.0
+    container_name: kotouc_mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: kotouc_root_2024
+      MYSQL_DATABASE: kotouc_manager
+      MYSQL_USER: kotouc_user
+      MYSQL_PASSWORD: kotouc_pass_2024
+    volumes:
+      - mysql_data:/var/lib/mysql      # Data přežijí restart kontejneru
+    ports:
+      - "3307:3306"                    # Port 3307 na PC → 3306 uvnitř Dockeru
+                                       # (aby nekolidovalo s případným XAMPP na 3306)
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost",
+             "-u", "root", "-pkotouc_root_2024"]
+      interval: 5s
+      timeout: 10s
+      retries: 15
+      start_period: 30s
+
+  # ─────────────────────────────────────────
+  #  Backend FastAPI
+  # ─────────────────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: kotouc_backend
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy      # Počká, až MySQL bude připravena
+    environment:
+      DB_HOST: mysql                    # Název služby výše = hostname uvnitř Dockeru
+      DB_PORT: 3306
+      DB_USER: kotouc_user
+      DB_PASSWORD: kotouc_pass_2024
+      DB_NAME: kotouc_manager
+    ports:
+      - "8000:8000"
+
+  # ─────────────────────────────────────────
+  #  Frontend React (Nginx)
+  # ─────────────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: kotouc_frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "5173:80"                       # http://localhost:5173 → Nginx uvnitř
+
+volumes:
+  mysql_data:                           # Pojmenovaný volume = data zůstanou i po docker-compose down
