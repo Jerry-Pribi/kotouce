@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "../api";
 import type { Location, LocationType } from "../types";
+import { useAuth } from "../components/AuthContext";
 
 const TYPE_LABELS: Record<LocationType, string> = {
   sklad: "Skladová hala",
@@ -9,6 +10,8 @@ const TYPE_LABELS: Record<LocationType, string> = {
 };
 
 export function Locations() {
+  const { user } = useAuth();
+  const isAdmin = user?.role === "admin";
   const [locations, setLocations] = useState<Location[]>([]);
   const [name, setName] = useState("");
   const [type, setType] = useState<LocationType>("sklad");
@@ -40,7 +43,8 @@ export function Locations() {
   return (
     <div>
       {/* FORMULÁŘ PRO PŘIDÁNÍ STANOVIŠTĚ */}
-      <div className="card">
+      {!isAdmin && <div className="admin-only-note">Zakládání nových stanovišť spravuje administrátor.</div>}
+      {isAdmin && <div className="card">
         <div className="card-header">
           <div>
             <div className="card-title">Nové stanoviště kotoučů</div>
@@ -86,7 +90,7 @@ export function Locations() {
             {error}
           </div>
         )}
-      </div>
+      </div>}
 
       {/* SEZNAM STANOVIŠŤ */}
       <div className="data-table-container">

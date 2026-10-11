@@ -10,14 +10,33 @@ import type {
   UsageRecord,
 } from "./types";
 
+const TOKEN_KEY = "kotouc_access_token";
+let accessToken = localStorage.getItem(TOKEN_KEY);
+
+export function setAccessToken(token: string | null) {
+  accessToken = token;
+  if (token) localStorage.setItem(TOKEN_KEY, token);
+  else localStorage.removeItem(TOKEN_KEY);
+}
+
+export function getAccessToken() {
+  return accessToken;
+}
+
 const BASE_URL = import.meta.env.VITE_API_URL ?? "";
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
+  const headers = new Headers(options?.headers);
+  headers.set("Content-Type", "application/json");
+  if (accessToken) headers.set("Authorization", `Bearer ${accessToken}`);
   const res = await fetch(`${BASE_URL}${path}`, {
-    headers: { "Content-Type": "application/json" },
     ...options,
+    headers,
   });
   if (!res.ok) {
+    if (res.status === 401 && path !== "/api/auth/login") {
+      window.dispatchEvent(new Event("auth:expired"));
+    }
     const body = await res.json().catch(() => ({ detail: res.statusText }));
     throw new Error(body.detail ?? "Chyba požadavku");
   }
@@ -26,6 +45,15 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 }
 
 export const api = {
+  login: (username: string, password: string) =>
+    request<LoginResponse>("/api/auth/login", { method: "POST", body: JSON.stringify({ username, password }) }),
+  me: () => request<AppUser>("/api/auth/me"),
+  logout: () => request<void>("/api/auth/logout", { method: "POST" }),
+  adminUsers: () => request<AdminUser[]>("/api/admin/users"),
+  createAdminUser: (data: { username: string; password: string; role: "user" | "admin" }) =>
+    request<AdminUser>("/api/admin/users", { method: "POST", body: JSON.stringify(data) }),
+  deleteAdminUser: (id: number) => request<void>(`/api/admin/users/${id}`, { method: "DELETE" }),
+  adminSessions: () => request<AdminSession[]>("/api/admin/sessions"),
   dashboard: () => request<DashboardSummary>("/api/dashboard"),
 
   manufacturers: () => request<Manufacturer[]>("/api/manufacturers"),
@@ -81,3 +109,32 @@ export const api = {
       body: JSON.stringify(data),
     }),
 };
+
+export interface AppUser {
+  id: number;
+  username: string;
+  role: "user" | "admin";
+  is_active: boolean;
+  created_at: string;
+  last_login_at: string | null;
+}
+
+export interface LoginResponse {
+  access_token: string;
+  token_type: string;
+  user: AppUser;
+}
+
+export interface AdminUser extends AppUser {}
+
+export interface AdminSession {
+  id: number;
+  username: string;
+  ip_address: string | null;
+  user_agent: string | null;
+  created_at: string;
+  last_seen_at: string;
+  expires_at: string;
+  ended_at: string | null;
+  is_active: boolean;
+}

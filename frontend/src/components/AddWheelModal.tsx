@@ -1,6 +1,5 @@
-import { useState } from "react";
-import type { Location, WheelStatus } from "../types";
-import { STATUS_LABELS } from "../types";
+import { useEffect, useMemo, useState } from "react";
+import type { Location } from "../types";
 import { api } from "../api";
 
 interface Props {
@@ -9,25 +8,36 @@ interface Props {
   onCreated: () => void;
 }
 
-const STATUSES: WheelStatus[] = ["sklad", "v_provozu", "na_reprofilaci", "vyrazen"];
-
 export function AddWheelModal({ locations, onClose, onCreated }: Props) {
   const [serial, setSerial] = useState("");
   const [manufacturer, setManufacturer] = useState("");
   const [diameter, setDiameter] = useState(150);
   const [profile, setProfile] = useState("");
-  const [status, setStatus] = useState<WheelStatus>("sklad");
+  const [destination, setDestination] = useState<"sklad" | "v_provozu">("sklad");
   const [locationId, setLocationId] = useState<string>("");
   const [maxLifetime, setMaxLifetime] = useState<string>("1000");
   const [note, setNote] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const availableLocations = useMemo(() => locations.filter((location) =>
+    location.type === (destination === "sklad" ? "sklad" : "linka")
+  ), [destination, locations]);
+
+  useEffect(() => {
+    setLocationId((current) => availableLocations.some((location) => String(location.id) === current)
+      ? current
+      : String(availableLocations[0]?.id ?? ""));
+  }, [availableLocations]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
     if (!serial.trim() || !manufacturer.trim() || !profile.trim()) {
       setError("Vyplňte prosím výrobní číslo, výrobce i profil kotouče.");
+      return;
+    }
+    if (!locationId) {
+      setError(destination === "sklad" ? "Vyberte sklad, kam se má kotouč uložit." : "Vyberte výrobní linku, na kterou se má kotouč nasadit.");
       return;
     }
     setSaving(true);
@@ -37,7 +47,7 @@ export function AddWheelModal({ locations, onClose, onCreated }: Props) {
         manufacturer: manufacturer.trim(),
         diameter,
         profile: profile.trim(),
-        status,
+        status: destination,
         location_id: locationId ? Number(locationId) : null,
         max_lifetime_m: maxLifetime ? Number(maxLifetime) : null,
         received_date: new Date().toISOString().slice(0, 10),
@@ -68,8 +78,8 @@ export function AddWheelModal({ locations, onClose, onCreated }: Props) {
 
         <form onSubmit={handleSubmit}>
           <div className="modal-body">
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-              <div className="filter-field" style={{ gridColumn: "span 2" }}>
+            <div className="add-wheel-grid">
+              <div className="filter-field full-width">
                 <label htmlFor="serial">Výrobní číslo z vyraženého štítku *</label>
                 <input
                   id="serial"
@@ -118,30 +128,33 @@ export function AddWheelModal({ locations, onClose, onCreated }: Props) {
                 />
               </div>
 
-              <div className="filter-field">
-                <label htmlFor="status">Počáteční stav</label>
-                <select
-                  id="status"
-                  value={status}
-                  onChange={(e) => setStatus(e.target.value as WheelStatus)}
-                >
-                  {STATUSES.map((s) => (
-                    <option key={s} value={s}>
-                      {STATUS_LABELS[s]}
-                    </option>
-                  ))}
-                </select>
+              <div className="destination-picker full-width">
+                <span className="destination-label">Kam kotouč po příjmu umístíme?</span>
+                <div className="destination-options" role="group" aria-label="Počáteční umístění kotouče">
+                  <button type="button" className={`destination-option ${destination === "sklad" ? "selected" : ""}`} aria-pressed={destination === "sklad"} onClick={() => setDestination("sklad")}>
+                    <span className="destination-symbol" aria-hidden="true">▤</span>
+                    <span><strong>Do skladu</strong><small>Uložit jako připravenou zásobu</small></span>
+                    <span className="destination-check" aria-hidden="true">{destination === "sklad" ? "✓" : ""}</span>
+                  </button>
+                  <button type="button" className={`destination-option ${destination === "v_provozu" ? "selected" : ""}`} aria-pressed={destination === "v_provozu"} onClick={() => setDestination("v_provozu")}>
+                    <span className="destination-symbol" aria-hidden="true">⚙</span>
+                    <span><strong>Do provozu</strong><small>Nasadit rovnou na výrobní linku</small></span>
+                    <span className="destination-check" aria-hidden="true">{destination === "v_provozu" ? "✓" : ""}</span>
+                  </button>
+                </div>
+                <div className="destination-hint">Počáteční stav: <strong>{destination === "sklad" ? "Skladem" : "V provozu"}</strong></div>
               </div>
 
-              <div className="filter-field" style={{ gridColumn: "span 2" }}>
-                <label htmlFor="location">Uložení na stanovišti</label>
+              <div className="filter-field full-width">
+                <label htmlFor="location">{destination === "sklad" ? "Vyberte sklad" : "Vyberte výrobní linku"}</label>
                 <select
                   id="location"
                   value={locationId}
                   onChange={(e) => setLocationId(e.target.value)}
+                  required
                 >
-                  <option value="">— Vyberte sklad nebo výrobní linku —</option>
-                  {locations.map((l) => (
+                  <option value="">{availableLocations.length ? "Vyberte stanoviště" : destination === "sklad" ? "Nejprve musí administrátor založit sklad" : "Nejprve musí administrátor založit výrobní linku"}</option>
+                  {availableLocations.map((l) => (
                     <option key={l.id} value={l.id}>
                       {l.name}
                     </option>
@@ -149,7 +162,7 @@ export function AddWheelModal({ locations, onClose, onCreated }: Props) {
                 </select>
               </div>
 
-              <div className="filter-field" style={{ gridColumn: "span 2" }}>
+              <div className="filter-field full-width">
                 <label htmlFor="lifetime">Předpokládaná max. životnost (m)</label>
                 <input
                   id="lifetime"
@@ -160,7 +173,7 @@ export function AddWheelModal({ locations, onClose, onCreated }: Props) {
                 />
               </div>
 
-              <div className="filter-field" style={{ gridColumn: "span 2" }}>
+              <div className="filter-field full-width">
                 <label htmlFor="note">Poznámka</label>
                 <textarea
                   id="note"
@@ -184,8 +197,8 @@ export function AddWheelModal({ locations, onClose, onCreated }: Props) {
             <button type="button" className="btn btn-secondary" onClick={onClose}>
               Zrušit
             </button>
-            <button type="submit" className="btn btn-primary" disabled={saving}>
-              {saving ? "Ukládám…" : "Zaevidovat kotouč"}
+            <button type="submit" className="btn btn-primary" disabled={saving || !locationId}>
+              {saving ? "Ukládám…" : destination === "sklad" ? "Přijmout do skladu" : "Předat do provozu"}
             </button>
           </div>
         </form>

@@ -1,4 +1,4 @@
-# Management databáze brusných kotoučů
+# Management kotoučů
 
 Digitalizovaný systém správy a sledování oběhu diamantových brusných kotoučů pro **AGC Automotive Czech a.s.** (závod Chudeřice).  
 Projekt pro soutěž **TECHNOWIZZ 2026 — Téma č. 2**  
@@ -74,6 +74,10 @@ Systém je postaven na třívrstvé architektuře s plnou kontejnerizací:
 
 Předpokladem je nainstalovaný a spuštěný **Docker Desktop**.
 
+Před prvním spuštěním zkopírujte `.env.example` na `.env` a doplňte vlastní
+`ADMIN_PASSWORD` (alespoň 10 znaků). Tento účet se vytvoří jako první
+administrátor; heslo se do databáze ukládá pouze jako bezpečný hash.
+
 ```text
 Spuštění:  dvakrát kliknout na soubor  spustit.bat
 Zastavení: dvakrát kliknout na soubor  zastavit.bat
@@ -123,6 +127,13 @@ npm run dev
 ```
 
 Aplikace běží na `http://localhost:5173`.
+
+Před prvním lokálním spuštěním backendu nastavte v `backend/.env` také
+`ADMIN_USERNAME=admin` a vlastní `ADMIN_PASSWORD` o délce alespoň 10 znaků.
+Při startu se účet založí, pokud ještě neexistuje. Potom se přihlaste přes
+web; administrátor může na stránce **Administrace** vytvářet a odebírat účty,
+prohlížet historii a aktivitu přihlášení a zakládat stanoviště. Běžný uživatel
+může používat evidenci, ale administraci neuvidí.
 
 \---
 

@@ -43,6 +43,8 @@ services:
       DB_USER: kotouc_user
       DB_PASSWORD: kotouc_pass_2024
       DB_NAME: kotouc_manager
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?Nastav ADMIN_PASSWORD v kořenovém .env souboru (alespoň 10 znaků)}
     ports:
       - "8000:8000"
 

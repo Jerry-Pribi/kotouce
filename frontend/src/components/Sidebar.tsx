@@ -1,4 +1,5 @@
 import { NavLink } from "react-router-dom";
+import { useAuth } from "./AuthContext";
 
 const LINKS = [
   { to: "/", label: "Přehled", end: true, icon: "◫" },
@@ -7,16 +8,18 @@ const LINKS = [
 ];
 
 export function Sidebar() {
+  const { user } = useAuth();
+  const links = user?.role === "admin" ? [...LINKS, { to: "/admin", label: "Administrace", icon: "⚙" }] : LINKS;
   return (
     <aside className="sidebar">
       <div className="sidebar-brand">
         <div className="sidebar-mark">AGC</div>
-        <div><div className="sidebar-brand-title">Kotouč Manager</div>
+        <div><div className="sidebar-brand-title">Management kotoučů</div>
         <div className="sidebar-brand-sub">CHUDEŘICE · BROUŠENÍ</div></div>
       </div>
       <div className="sidebar-section-label">SPRÁVA PROVOZU</div>
       <nav className="sidebar-nav">
-        {LINKS.map((l) => (
+        {links.map((l) => (
           <NavLink
             key={l.to}
             to={l.to}

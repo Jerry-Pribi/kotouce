@@ -50,7 +50,8 @@ def run(reset: bool = True, check_db: bool = False):
     if reset:
         with engine.connect() as connection:
             connection.execute(text("SET FOREIGN_KEY_CHECKS = 0;"))
-            for tbl in reversed(Base.metadata.sorted_tables):
+            # Reset only wheel reference data; keep accounts and their login audit history.
+            for tbl in reversed([table for table in Base.metadata.sorted_tables if table.name not in {"users", "user_sessions"}]):
                 connection.execute(text(f"DROP TABLE IF EXISTS `{tbl.name}`;"))
             connection.execute(text("SET FOREIGN_KEY_CHECKS = 1;"))
             connection.commit()

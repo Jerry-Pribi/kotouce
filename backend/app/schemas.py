@@ -1,7 +1,7 @@
 from datetime import date, datetime
 from pydantic import BaseModel, ConfigDict
 
-from .models import WheelStatus, LocationType
+from .models import WheelStatus, LocationType, UserRole
 
 
 class ManufacturerCreate(BaseModel):
@@ -102,3 +102,42 @@ class DashboardSummary(BaseModel):
     by_status: dict[str, int]
     matrix: list[DashboardCell]
     wheels_near_end_of_life: int
+
+
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+
+
+class UserCreate(BaseModel):
+    username: str
+    password: str
+    role: UserRole = UserRole.USER
+
+
+class UserOut(BaseModel):
+    id: int
+    username: str
+    role: UserRole
+    is_active: bool
+    created_at: datetime
+    last_login_at: datetime | None
+    model_config = ConfigDict(from_attributes=True)
+
+
+class LoginResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    user: UserOut
+
+
+class UserSessionOut(BaseModel):
+    id: int
+    username: str
+    ip_address: str | None
+    user_agent: str | None
+    created_at: datetime
+    last_seen_at: datetime
+    expires_at: datetime
+    ended_at: datetime | None
+    is_active: bool
