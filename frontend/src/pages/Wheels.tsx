@@ -15,6 +15,7 @@ export function Wheels() {
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
+  const [wearSort, setWearSort] = useState<"asc" | "desc">("desc");
 
   // Filtry ze stavu / URL parametrů
   const search = searchParams.get("hledat") || "";
@@ -91,6 +92,15 @@ export function Wheels() {
   }
 
   const hasActiveFilters = Boolean(search || status || diameter || manufacturer || profile || locationId);
+  const sortedWheels = [...wheels].sort((a, b) => {
+    const wearA = a.max_lifetime_m ? (a.total_meters_ground ?? 0) / a.max_lifetime_m : null;
+    const wearB = b.max_lifetime_m ? (b.total_meters_ground ?? 0) / b.max_lifetime_m : null;
+    if (wearA === null && wearB !== null) return 1;
+    if (wearB === null && wearA !== null) return -1;
+    if (wearA === null || wearB === null) return a.serial_number.localeCompare(b.serial_number);
+    return (wearSort === "desc" ? wearB - wearA : wearA - wearB)
+      || a.serial_number.localeCompare(b.serial_number);
+  });
 
   return (
     <div>
@@ -230,7 +240,16 @@ export function Wheels() {
               <th>Výrobce a specifikace</th>
               <th>Aktuální stanoviště</th>
               <th>Stav oběhu</th>
-              <th style={{ minWidth: 160 }}>Opotřebení nástroje</th>
+              <th style={{ minWidth: 190 }} aria-sort={wearSort === "desc" ? "descending" : "ascending"}>
+                <button
+                  type="button"
+                  className="wear-sort-button"
+                  onClick={() => setWearSort((current) => current === "desc" ? "asc" : "desc")}
+                  title={wearSort === "desc" ? "Seřazeno od nejvíce opotřebených; kliknutím zobrazíte nejméně opotřebené první" : "Seřazeno od nejméně opotřebených; kliknutím zobrazíte nejvíce opotřebené první"}
+                >
+                  Opotřebení nástroje <span aria-hidden="true">{wearSort === "desc" ? "↓" : "↑"}</span>
+                </button>
+              </th>
               <th style={{ textAlign: "right" }}>Akce</th>
             </tr>
           </thead>
@@ -242,7 +261,7 @@ export function Wheels() {
                 </td>
               </tr>
             ) : (
-              wheels.map((w) => {
+              sortedWheels.map((w) => {
                 const total = w.total_meters_ground ?? 0;
                 const max = w.max_lifetime_m;
                 const pct = max ? Math.min(100, (total / max) * 100) : null;
