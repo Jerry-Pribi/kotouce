@@ -229,7 +229,7 @@ export function Wheels() {
             {loading ? "Vyhledávám…" : `Zobrazeno ${wheels.length} kotoučů`}
           </span>
           <button className="btn btn-primary" style={{ padding: "5px 12px", fontSize: "12px" }} onClick={() => setShowAdd(true)}>
-            + Přijmout kotouč na sklad
+            + Přidat kotouč
           </button>
         </div>
 

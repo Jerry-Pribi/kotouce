@@ -115,6 +115,14 @@ class UserCreate(BaseModel):
     role: UserRole = UserRole.USER
 
 
+class UserPasswordReset(BaseModel):
+    password: str
+
+
+class UserRename(BaseModel):
+    username: str
+
+
 class UserOut(BaseModel):
     id: int
     username: str

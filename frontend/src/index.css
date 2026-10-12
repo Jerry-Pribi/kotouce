@@ -1181,6 +1181,17 @@ button, input, select, textarea { font-size: 15px; }
 .admin-table-container { overflow-x: auto; }
 .admin-table-container .data-table { min-width: 680px; }
 .admin-table-container td { vertical-align: middle; }
+.account-expand-button { display: inline-flex; min-height: 0 !important; align-items: center; gap: 9px; padding: 4px 0; border: 0; background: transparent; color: #1e5f91; cursor: pointer; }
+.account-expand-button:hover { color: #123f67; }
+.account-expand-button span { color: #7892a8; font-size: 15px; }
+.account-expanded-row td { padding: 14px 18px !important; background: #f5f9fc; }
+.account-password-form { display: flex; align-items: end; gap: 14px; max-width: 660px; }
+.account-password-form .filter-field { flex: 1; }
+.account-password-form .btn { min-height: 42px; white-space: nowrap; }
+.account-management-forms { display: flex; flex-wrap: wrap; gap: 18px 28px; }
+.account-username-form { display: flex; align-items: end; gap: 12px; flex: 1 1 360px; max-width: 660px; }
+.account-username-form .filter-field { flex: 1; }
+.account-username-form .btn { min-height: 42px; white-space: nowrap; }
 .role-pill { display: inline-flex; padding: 4px 9px; border-radius: 16px; font-size: 12px; font-weight: 700; }
 .role-pill.admin { color: #18588a; background: #e2f1fd; }
 .role-pill.user { color: #52667a; background: #edf1f5; }

@@ -162,6 +162,61 @@ def create_user(data: schemas.UserCreate, db: Session = Depends(get_db), _admin:
     return user
 
 
+@app.put("/api/admin/users/{user_id}/password", status_code=204)
+def reset_user_password(
+    user_id: int,
+    data: schemas.UserPasswordReset,
+    db: Session = Depends(get_db),
+    admin: models.User = Depends(require_admin),
+):
+    user = db.get(models.User, user_id)
+    if not user:
+        raise HTTPException(404, "Uživatel nenalezen")
+    if user.role == models.UserRole.MEGA_ADMIN:
+        raise HTTPException(403, "Heslo MegaAdmina nelze měnit z administrace")
+    if user.role == models.UserRole.ADMIN and admin.role != models.UserRole.MEGA_ADMIN:
+        raise HTTPException(403, "Hesla administrátorů může měnit pouze MegaAdmin")
+    if len(data.password) < 10:
+        raise HTTPException(400, "Heslo musí mít alespoň 10 znaků")
+    user.password_hash = hash_password(data.password)
+    for session in user.sessions:
+        if session.ended_at is None:
+            session.ended_at = datetime.utcnow()
+    db.commit()
+    return Response(status_code=204)
+
+
+@app.put("/api/admin/users/{user_id}/username", response_model=schemas.UserOut)
+def rename_user(
+    user_id: int,
+    data: schemas.UserRename,
+    db: Session = Depends(get_db),
+    admin: models.User = Depends(require_admin),
+):
+    user = db.get(models.User, user_id)
+    if not user:
+        raise HTTPException(404, "Uživatel nenalezen")
+    if user.role == models.UserRole.MEGA_ADMIN:
+        raise HTTPException(403, "Uživatelské jméno MegaAdmina nelze měnit z administrace")
+    if user.role == models.UserRole.ADMIN and admin.role != models.UserRole.MEGA_ADMIN:
+        raise HTTPException(403, "Uživatelská jména administrátorů může měnit pouze MegaAdmin")
+    username = data.username.strip().lower()
+    if not re.fullmatch(r"[a-z0-9][a-z0-9_.-]{2,31}", username):
+        raise HTTPException(400, "Uživatelské jméno musí mít 3–32 znaků (písmena bez diakritiky, čísla, . _ -)")
+    existing = db.scalar(select(models.User.id).where(
+        models.User.username == username,
+        models.User.id != user.id,
+    ))
+    if existing:
+        raise HTTPException(409, "Uživatel s tímto jménem už existuje")
+    user.username = username
+    for session in user.sessions:
+        session.username = username
+    db.commit()
+    db.refresh(user)
+    return user
+
+
 @app.delete("/api/admin/users/{user_id}", status_code=204)
 def delete_user(user_id: int, db: Session = Depends(get_db), admin: models.User = Depends(require_admin)):
     user = db.get(models.User, user_id)

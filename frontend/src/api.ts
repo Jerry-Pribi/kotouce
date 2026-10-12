@@ -53,6 +53,8 @@ export const api = {
   createAdminUser: (data: { username: string; password: string; role: "user" | "admin" | "mega_admin" }) =>
     request<AdminUser>("/api/admin/users", { method: "POST", body: JSON.stringify(data) }),
   deleteAdminUser: (id: number) => request<void>(`/api/admin/users/${id}`, { method: "DELETE" }),
+  resetAdminUserPassword: (id: number, password: string) => request<void>(`/api/admin/users/${id}/password`, { method: "PUT", body: JSON.stringify({ password }) }),
+  renameAdminUser: (id: number, username: string) => request<AdminUser>(`/api/admin/users/${id}/username`, { method: "PUT", body: JSON.stringify({ username }) }),
   adminSessions: () => request<AdminSession[]>("/api/admin/sessions"),
   adminUserDeletionAudits: () => request<UserDeletionAudit[]>("/api/admin/audits/user-deletions"),
   adminWheelCreationAudits: () => request<WheelCreationAudit[]>("/api/admin/audits/wheel-creations"),
