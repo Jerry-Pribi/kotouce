@@ -9,7 +9,7 @@ const LINKS = [
 
 export function Sidebar() {
   const { user } = useAuth();
-  const links = user?.role === "admin" ? [...LINKS, { to: "/admin", label: "Administrace", icon: "⚙" }] : LINKS;
+  const links = user?.role !== "user" ? [...LINKS, { to: "/admin", label: "Administrace", icon: "⚙" }] : LINKS;
   return (
     <aside className="sidebar">
       <div className="sidebar-brand">

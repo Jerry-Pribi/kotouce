@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from fastapi import FastAPI, Depends, HTTPException, Query, Request, Response
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy import select, func
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from . import models, schemas, crud
@@ -48,7 +48,7 @@ def get_current_user(
 
 
 def require_admin(user: models.User = Depends(get_current_user)) -> models.User:
-    if user.role != models.UserRole.ADMIN:
+    if user.role not in {models.UserRole.ADMIN, models.UserRole.MEGA_ADMIN}:
         raise HTTPException(403, "Tato funkce je dostupná pouze administrátorům")
     return user
 
@@ -58,14 +58,34 @@ def initialize_admin() -> None:
     username = os.getenv("ADMIN_USERNAME", "").strip().lower()
     password = os.getenv("ADMIN_PASSWORD", "")
     if not username and not password:
+        # Keep legacy databases valid too: if an older version created more than
+        # one, retain the oldest account as the sole mega admin.
+        with SessionLocal() as db:
+            mega_admins = db.scalars(select(models.User).where(
+                models.User.role == models.UserRole.MEGA_ADMIN
+            ).order_by(models.User.id)).all()
+            for extra_admin in mega_admins[1:]:
+                extra_admin.role = models.UserRole.ADMIN
+            if len(mega_admins) > 1:
+                db.commit()
         return
     if not username or len(password) < 10:
         raise RuntimeError("ADMIN_USERNAME a ADMIN_PASSWORD (alespoň 10 znaků) musí být nastavené společně.")
     with SessionLocal() as db:
         existing = db.scalar(select(models.User).where(models.User.username == username))
         if existing:
+            existing.role = models.UserRole.MEGA_ADMIN
+            db.execute(
+                models.User.__table__.update()
+                .where(models.User.id != existing.id, models.User.role == models.UserRole.MEGA_ADMIN)
+                .values(role=models.UserRole.ADMIN)
+            )
+            db.commit()
             return
-        db.add(models.User(username=username, password_hash=hash_password(password), role=models.UserRole.ADMIN))
+        db.execute(models.User.__table__.update().where(
+            models.User.role == models.UserRole.MEGA_ADMIN
+        ).values(role=models.UserRole.ADMIN))
+        db.add(models.User(username=username, password_hash=hash_password(password), role=models.UserRole.MEGA_ADMIN))
         db.commit()
 
 
@@ -131,6 +151,8 @@ def create_user(data: schemas.UserCreate, db: Session = Depends(get_db), _admin:
         raise HTTPException(400, "Uživatelské jméno musí mít 3–32 znaků (písmena bez diakritiky, čísla, . _ -)")
     if len(data.password) < 10:
         raise HTTPException(400, "Heslo musí mít alespoň 10 znaků")
+    if data.role == models.UserRole.MEGA_ADMIN:
+        raise HTTPException(403, "MegaAdmin je jediný a nelze ho vytvořit přes administraci")
     if db.scalar(select(models.User.id).where(models.User.username == username)):
         raise HTTPException(409, "Uživatel s tímto jménem už existuje")
     user = models.User(username=username, password_hash=hash_password(data.password), role=data.role)
@@ -147,13 +169,21 @@ def delete_user(user_id: int, db: Session = Depends(get_db), admin: models.User 
         raise HTTPException(404, "Uživatel nenalezen")
     if user.id == admin.id:
         raise HTTPException(400, "Svůj vlastní administrátorský účet nelze odstranit")
-    if user.role == models.UserRole.ADMIN:
-        admin_count = db.scalar(select(func.count()).select_from(models.User).where(models.User.role == models.UserRole.ADMIN)) or 0
-        if admin_count <= 1:
-            raise HTTPException(400, "V systému musí zůstat alespoň jeden administrátor")
+    if user.role == models.UserRole.MEGA_ADMIN:
+        raise HTTPException(403, "Účet megaAdmina nelze odstranit z administrace")
+    if user.role == models.UserRole.ADMIN and admin.role != models.UserRole.MEGA_ADMIN:
+        raise HTTPException(403, "Administrátory může mazat pouze megaAdmin")
     for user_session in user.sessions:
         if user_session.ended_at is None:
             user_session.ended_at = datetime.utcnow()
+    db.add(models.UserDeletionAudit(
+        actor_user_id=admin.id,
+        actor_username=admin.username,
+        deleted_user_id=user.id,
+        deleted_username=user.username,
+        deleted_role=user.role,
+        deleted_at=datetime.utcnow(),
+    ))
     db.delete(user)
     db.commit()
     return Response(status_code=204)
@@ -179,6 +209,16 @@ def list_sessions(db: Session = Depends(get_db), _admin: models.User = Depends(r
         "ended_at": session.ended_at,
         "is_active": session.ended_at is None and session.expires_at > now and session.last_seen_at >= active_after,
     } for session in rows]
+
+
+@app.get("/api/admin/audits/user-deletions", response_model=list[schemas.UserDeletionAuditOut])
+def list_user_deletion_audits(db: Session = Depends(get_db), _admin: models.User = Depends(require_admin)):
+    return db.scalars(select(models.UserDeletionAudit).order_by(models.UserDeletionAudit.deleted_at.desc())).all()
+
+
+@app.get("/api/admin/audits/wheel-creations", response_model=list[schemas.WheelCreationAuditOut])
+def list_wheel_creation_audits(db: Session = Depends(get_db), _admin: models.User = Depends(require_admin)):
+    return db.scalars(select(models.WheelCreationAudit).order_by(models.WheelCreationAudit.created_at.desc())).all()
 
 
 # ---------- Reference data ----------
@@ -279,13 +319,13 @@ def list_wheels(
 
 
 @app.post("/api/wheels", response_model=schemas.WheelOut)
-def create_wheel(data: schemas.WheelCreate, db: Session = Depends(get_db), _user: models.User = Depends(get_current_user)):
+def create_wheel(data: schemas.WheelCreate, db: Session = Depends(get_db), user: models.User = Depends(get_current_user)):
     existing = db.scalar(
         select(models.Wheel).where(models.Wheel.serial_number == data.serial_number.strip())
     )
     if existing:
         raise HTTPException(400, "Kotouč s tímto výrobním číslem už v databázi existuje")
-    wheel = crud.create_wheel(db, data)
+    wheel = crud.create_wheel(db, data, created_by=user)
     return crud.to_wheel_out(db, wheel)
 
 

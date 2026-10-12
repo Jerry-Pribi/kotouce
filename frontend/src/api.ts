@@ -50,10 +50,12 @@ export const api = {
   me: () => request<AppUser>("/api/auth/me"),
   logout: () => request<void>("/api/auth/logout", { method: "POST" }),
   adminUsers: () => request<AdminUser[]>("/api/admin/users"),
-  createAdminUser: (data: { username: string; password: string; role: "user" | "admin" }) =>
+  createAdminUser: (data: { username: string; password: string; role: "user" | "admin" | "mega_admin" }) =>
     request<AdminUser>("/api/admin/users", { method: "POST", body: JSON.stringify(data) }),
   deleteAdminUser: (id: number) => request<void>(`/api/admin/users/${id}`, { method: "DELETE" }),
   adminSessions: () => request<AdminSession[]>("/api/admin/sessions"),
+  adminUserDeletionAudits: () => request<UserDeletionAudit[]>("/api/admin/audits/user-deletions"),
+  adminWheelCreationAudits: () => request<WheelCreationAudit[]>("/api/admin/audits/wheel-creations"),
   dashboard: () => request<DashboardSummary>("/api/dashboard"),
 
   manufacturers: () => request<Manufacturer[]>("/api/manufacturers"),
@@ -113,7 +115,7 @@ export const api = {
 export interface AppUser {
   id: number;
   username: string;
-  role: "user" | "admin";
+  role: "user" | "admin" | "mega_admin";
   is_active: boolean;
   created_at: string;
   last_login_at: string | null;
@@ -137,4 +139,25 @@ export interface AdminSession {
   expires_at: string;
   ended_at: string | null;
   is_active: boolean;
+}
+
+export interface UserDeletionAudit {
+  id: number;
+  actor_username: string;
+  deleted_username: string;
+  deleted_role: "user" | "admin" | "mega_admin";
+  deleted_at: string;
+}
+
+export interface WheelCreationAudit {
+  id: number;
+  wheel_id: number | null;
+  wheel_serial_number: string;
+  manufacturer_name: string;
+  diameter: number;
+  profile_code: string;
+  initial_status: WheelStatus;
+  initial_location_name: string | null;
+  created_by_username: string;
+  created_at: string;
 }

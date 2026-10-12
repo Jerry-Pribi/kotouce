@@ -75,8 +75,9 @@ Systém je postaven na třívrstvé architektuře s plnou kontejnerizací:
 Předpokladem je nainstalovaný a spuštěný **Docker Desktop**.
 
 Před prvním spuštěním zkopírujte `.env.example` na `.env` a doplňte vlastní
-`ADMIN_PASSWORD` (alespoň 10 znaků). Tento účet se vytvoří jako první
-administrátor; heslo se do databáze ukládá pouze jako bezpečný hash.
+`ADMIN_PASSWORD` (alespoň 10 znaků). Tento účet se vytvoří nebo povýší na
+megaAdmina; heslo se do databáze ukládá pouze jako bezpečný hash. MegaAdmin
+může spravovat adminy, běžný admin může mazat pouze běžné uživatele.
 
 ```text
 Spuštění:  dvakrát kliknout na soubor  spustit.bat
@@ -131,9 +132,12 @@ Aplikace běží na `http://localhost:5173`.
 Před prvním lokálním spuštěním backendu nastavte v `backend/.env` také
 `ADMIN_USERNAME=admin` a vlastní `ADMIN_PASSWORD` o délce alespoň 10 znaků.
 Při startu se účet založí, pokud ještě neexistuje. Potom se přihlaste přes
-web; administrátor může na stránce **Administrace** vytvářet a odebírat účty,
-prohlížet historii a aktivitu přihlášení a zakládat stanoviště. Běžný uživatel
-může používat evidenci, ale administraci neuvidí.
+web; admin může na stránce **Administrace** spravovat běžné uživatele a
+zakládat stanoviště. MegaAdmin navíc může mazat adminy a vytvářet další
+megaAdmin účty. Administrace uchovává audit odstraněných účtů a přehled, kdo
+založil jednotlivé kotouče. Běžný uživatel může používat evidenci, ale
+administraci neuvidí. U starších kotoučů vytvořených před zavedením auditu
+není možné určit autora zpětně.
 
 \---
 

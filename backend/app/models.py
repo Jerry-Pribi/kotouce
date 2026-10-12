@@ -44,6 +44,7 @@ class LocationType(str, enum.Enum):
 class UserRole(str, enum.Enum):
     USER = "user"
     ADMIN = "admin"
+    MEGA_ADMIN = "mega_admin"
 
 
 class User(Base):
@@ -77,6 +78,38 @@ class UserSession(Base):
     ended_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
     user: Mapped["User | None"] = relationship(back_populates="sessions")
+
+
+class UserDeletionAudit(Base):
+    __tablename__ = "user_deletion_audits"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    actor_user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    actor_username: Mapped[str] = mapped_column(String(80))
+    deleted_user_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    deleted_username: Mapped[str] = mapped_column(String(80))
+    deleted_role: Mapped[UserRole] = mapped_column(
+        Enum(UserRole, values_callable=lambda x: [e.value for e in x], native_enum=False, length=20)
+    )
+    deleted_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class WheelCreationAudit(Base):
+    __tablename__ = "wheel_creation_audits"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    wheel_id: Mapped[int | None] = mapped_column(ForeignKey("wheels.id", ondelete="SET NULL"), nullable=True, index=True)
+    wheel_serial_number: Mapped[str] = mapped_column(String(50))
+    manufacturer_name: Mapped[str] = mapped_column(String(50))
+    diameter: Mapped[int] = mapped_column(Integer)
+    profile_code: Mapped[str] = mapped_column(String(20))
+    initial_status: Mapped[WheelStatus] = mapped_column(
+        Enum(WheelStatus, values_callable=lambda x: [e.value for e in x], native_enum=False, length=30)
+    )
+    initial_location_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    created_by_user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    created_by_username: Mapped[str] = mapped_column(String(80))
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
 
 class Manufacturer(Base):

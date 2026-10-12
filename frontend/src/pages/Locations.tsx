@@ -11,7 +11,7 @@ const TYPE_LABELS: Record<LocationType, string> = {
 
 export function Locations() {
   const { user } = useAuth();
-  const isAdmin = user?.role === "admin";
+  const isAdmin = user?.role !== "user";
   const [locations, setLocations] = useState<Location[]>([]);
   const [name, setName] = useState("");
   const [type, setType] = useState<LocationType>("sklad");

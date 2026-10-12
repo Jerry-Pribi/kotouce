@@ -141,3 +141,26 @@ class UserSessionOut(BaseModel):
     expires_at: datetime
     ended_at: datetime | None
     is_active: bool
+
+
+class UserDeletionAuditOut(BaseModel):
+    id: int
+    actor_username: str
+    deleted_username: str
+    deleted_role: UserRole
+    deleted_at: datetime
+    model_config = ConfigDict(from_attributes=True)
+
+
+class WheelCreationAuditOut(BaseModel):
+    id: int
+    wheel_id: int | None
+    wheel_serial_number: str
+    manufacturer_name: str
+    diameter: int
+    profile_code: str
+    initial_status: WheelStatus
+    initial_location_name: str | None
+    created_by_username: str
+    created_at: datetime
+    model_config = ConfigDict(from_attributes=True)

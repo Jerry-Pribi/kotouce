@@ -35,7 +35,7 @@ def wheel_total_meters(db: Session, wheel_id: int) -> float:
     return float(total or 0.0)
 
 
-def create_wheel(db: Session, data: schemas.WheelCreate) -> models.Wheel:
+def create_wheel(db: Session, data: schemas.WheelCreate, created_by: models.User) -> models.Wheel:
     manufacturer = get_or_create_manufacturer(db, data.manufacturer)
     profile = get_or_create_profile(db, data.profile)
     wheel = models.Wheel(
@@ -50,6 +50,19 @@ def create_wheel(db: Session, data: schemas.WheelCreate) -> models.Wheel:
         note=data.note,
     )
     db.add(wheel)
+    db.flush()
+    location = db.get(models.Location, data.location_id) if data.location_id else None
+    db.add(models.WheelCreationAudit(
+        wheel_id=wheel.id,
+        wheel_serial_number=wheel.serial_number,
+        manufacturer_name=manufacturer.name,
+        diameter=wheel.diameter,
+        profile_code=profile.code,
+        initial_status=wheel.status,
+        initial_location_name=location.name if location else None,
+        created_by_user_id=created_by.id,
+        created_by_username=created_by.username,
+    ))
     db.commit()
     db.refresh(wheel)
     return wheel

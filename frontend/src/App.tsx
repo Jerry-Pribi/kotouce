@@ -25,7 +25,7 @@ function Workspace() {
             <Route path="/kotouce" element={<Wheels />} />
             <Route path="/kotouce/:id" element={<WheelDetailPage />} />
             <Route path="/lokace" element={<Locations />} />
-            <Route path="/admin" element={user.role === "admin" ? <AdminPanel /> : <Navigate to="/" replace />} />
+            <Route path="/admin" element={user.role !== "user" ? <AdminPanel /> : <Navigate to="/" replace />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </main>

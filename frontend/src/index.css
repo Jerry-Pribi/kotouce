@@ -1155,6 +1155,12 @@ button, input, select, textarea { font-size: 15px; }
 .login-form .filter-field span { display: block; margin-bottom: 6px; color: #385975; font-size: 13px; font-weight: 700; }
 .login-form input { width: 100%; min-height: 46px; padding: 10px 12px; border: 1px solid #c7d8e7; border-radius: 8px; outline: none; }
 .login-form input:focus { border-color: #3588c4; box-shadow: 0 0 0 3px rgba(53,136,196,.14); }
+.password-input-wrap { position: relative; }
+.password-input-wrap input { padding-right: 86px !important; }
+.password-visibility-toggle { position: absolute; top: 50%; right: 7px; display: grid; width: 32px; height: 32px; min-height: 0 !important; place-items: center; transform: translateY(-50%); padding: 0; border: 0; border-radius: 7px; background: transparent; color: #71869a; cursor: pointer; }
+.password-visibility-toggle:hover { background: #edf5fb; color: #236897; }
+.password-visibility-toggle svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.8; }
+.password-visibility-toggle:focus-visible { outline: 2px solid #3588c4; outline-offset: 2px; }
 .login-submit { min-height: 46px; margin-top: 3px; font-size: 15px; }
 .login-error,.admin-message { padding: 11px 13px; border-radius: 8px; font-size: 13px; }
 .login-error,.admin-message.error { border: 1px solid #f0c3c3; background: #fff2f2; color: #a22c2c; }
@@ -1178,8 +1184,13 @@ button, input, select, textarea { font-size: 15px; }
 .role-pill { display: inline-flex; padding: 4px 9px; border-radius: 16px; font-size: 12px; font-weight: 700; }
 .role-pill.admin { color: #18588a; background: #e2f1fd; }
 .role-pill.user { color: #52667a; background: #edf1f5; }
+.role-pill.mega_admin { color: #5d3e9b; background: #eee7fb; }
 .btn-remove-user { padding: 6px 10px; border: 1px solid #ecc8c8; border-radius: 7px; color: #a33b3b; background: white; font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
 .btn-remove-user:hover { color: #fff; border-color: #bb4a4a; background: #bb4a4a; }
+.btn-remove-user:disabled { border-color: #e0e5ea; color: #99a4ad; background: #f6f8fa; cursor: not-allowed; }
+.wheel-audit-status { display: inline-block; margin-left: 5px; padding: 3px 8px; border-radius: 20px; background: #e6f2fb; color: #1b6395; font-size: 11px; font-weight: 750; white-space: nowrap; }
+.wheel-audit-status.na_reprofilaci { background: #fff3dc; color: #956112; }
+.wheel-audit-status.vyrazen { background: #fce9e9; color: #a53a3a; }
 .session-state { display: inline-flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 700; white-space: nowrap; }
 .session-state i { width: 8px; height: 8px; border-radius: 50%; background: #98a5b2; }
 .session-state.online { color: #1d754e; }

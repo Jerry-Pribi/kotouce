@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { FormEvent } from "react";
 import { useAuth } from "../components/AuthContext";
+import { PasswordField } from "../components/PasswordField";
 
 export function Login() {
   const { login } = useAuth();
@@ -29,9 +30,7 @@ export function Login() {
           <label className="filter-field"><span>Uživatelské jméno</span>
             <input autoComplete="username" value={username} onChange={(e) => setUsername(e.target.value)} required autoFocus />
           </label>
-          <label className="filter-field"><span>Heslo</span>
-            <input type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required />
-          </label>
+          <PasswordField id="login-password" label="Heslo" autoComplete="current-password" value={password} onChange={setPassword} required />
           {error && <div className="login-error" role="alert">{error}</div>}
           <button className="btn btn-primary login-submit" disabled={busy}>{busy ? "Ověřuji…" : "Přihlásit se"}</button>
         </form>
