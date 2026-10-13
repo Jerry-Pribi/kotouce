@@ -1,4 +1,4 @@
-"""Populate the MySQL database with realistic sample data for AGC Automotive Czech.
+"""Populate the MariaDB database with realistic sample data for AGC Automotive Czech.
 
 Run with: python -m app.seed
 """

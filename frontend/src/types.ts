@@ -48,10 +48,43 @@ export interface Wheel {
   retired_date: string | null;
   note: string | null;
   total_meters_ground: number;
+  current_taken_by_name?: string | null;
+  current_taken_by_username?: string | null;
+  current_line_name?: string | null;
+  current_taken_at?: string | null;
 }
 
 export interface WheelDetail extends Wheel {
   usage_records: UsageRecord[];
+  return_records: WheelReturn[];
+  cycles: WheelCycle[];
+}
+
+export interface WheelReturn {
+  id: number;
+  wheel_id: number;
+  used_on_location_id: number | null;
+  used_on_location_name: string;
+  returned_to_location_name: string;
+  returned_by_username: string;
+  returned_at: string;
+}
+
+export interface WheelCycle {
+  id: number;
+  wheel_id: number;
+  taken_by_name: string;
+  taken_by_username: string;
+  taken_from_location_id: number | null;
+  taken_from_location_name: string | null;
+  used_on_location_id: number | null;
+  used_on_location_name: string;
+  taken_at: string;
+  returned_to_location_id: number | null;
+  returned_to_location_name: string | null;
+  returned_by_username: string | null;
+  returned_at: string | null;
+  meters_ground: number;
 }
 
 export interface DashboardCell {
@@ -78,4 +111,5 @@ export interface WheelCreatePayload {
   max_lifetime_m?: number | null;
   received_date?: string | null;
   note?: string | null;
+  taken_by_name?: string;
 }

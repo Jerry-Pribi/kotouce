@@ -100,6 +100,8 @@ export const api = {
       max_lifetime_m: number | null;
       retired_date: string | null;
       note: string | null;
+      returned_from_location_id: number | null;
+      taken_by_name: string | null;
     }>
   ) => request<Wheel>(`/api/wheels/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
   deleteWheel: (id: number) => request<void>(`/api/wheels/${id}`, { method: "DELETE" }),

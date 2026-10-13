@@ -63,7 +63,7 @@ Systém je postaven na třívrstvé architektuře s plnou kontejnerizací:
 
 * **Frontend:** React 19, TypeScript, Vite, Tailwind CSS (responzivní rozhraní vhodné pro PC i průmyslové tablety na lince).
 * **Backend:** Python 3.11, FastAPI (REST API s automatickou OpenAPI / Swagger dokumentací).
-* **Databáze:** MySQL 8.0, SQLAlchemy 2.0 (ORM), migrační verzování schématu Alembic.
+* **Databáze:** MariaDB 11.4 LTS, SQLAlchemy 2.0 (ORM), migrační verzování schématu Alembic.
 * **Infrastruktura:** Docker Compose, Nginx (reverzní proxy a servírování frontendu).
 
 \---
@@ -86,7 +86,7 @@ Zastavení: dvakrát kliknout na soubor  zastavit.bat
 
 Skript automaticky:
 
-1. Spustí kontejnery (MySQL 8, FastAPI backend, Nginx frontend).
+1. Spustí kontejnery (MariaDB, FastAPI backend, Nginx frontend).
 2. Provede databázové migrace a naplní databázi ukázkovými daty AGC (140 kotoučů, linky, sklady).
 3. Otevře webový prohlížeč na adrese `http://localhost:5173`.
 * **Webové rozhraní:** `http://localhost:5173`
@@ -94,9 +94,9 @@ Skript automaticky:
 
 \---
 
-### Varianta 2: Lokální běh bez Dockeru (Python + Node.js + MySQL)
+### Varianta 2: Lokální běh bez Dockeru (Python + Node.js + MariaDB)
 
-Vyžaduje lokálně spuštěný MySQL server na portu 3306 (např. přes XAMPP).
+Vyžaduje lokálně spuštěný MariaDB server na portu 3306.
 
 #### 1\. Konfigurace databáze (`backend/.env`)
 
@@ -161,6 +161,6 @@ není možné určit autora zpětně.
 ## Řešení častých provozních stavů
 
 * **Zablokované skripty v PowerShellu:** Spustit `Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass`.
-* **Chyba spojení s MySQL (WinError 10061):** Zkontrolovat, zda v XAMPP svítí zeleně služba MySQL (port 3306).
+* **Chyba spojení s MariaDB (WinError 10061):** Zkontrolovat, zda MariaDB běží a naslouchá na portu 3306.
 * **Blokace souborů OneDrivem:** Doporučeno spouštět z lokálního disku mimo synchronizovanou složku, aby nedocházelo k zamykání `.venv` a `node\\\\\\\\\\\\\\\_modules`.
 

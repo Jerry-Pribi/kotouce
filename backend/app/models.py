@@ -178,6 +178,50 @@ class Wheel(Base):
     usage_records: Mapped[list["UsageRecord"]] = relationship(
         back_populates="wheel", cascade="all, delete-orphan", order_by="UsageRecord.record_date"
     )
+    return_records: Mapped[list["WheelReturn"]] = relationship(
+        back_populates="wheel", cascade="all, delete-orphan", order_by="WheelReturn.returned_at.desc()"
+    )
+    cycles: Mapped[list["WheelCycle"]] = relationship(
+        back_populates="wheel", cascade="all, delete-orphan", order_by="WheelCycle.taken_at.desc()"
+    )
+
+
+class WheelReturn(Base):
+    __tablename__ = "wheel_returns"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    wheel_id: Mapped[int] = mapped_column(ForeignKey("wheels.id", ondelete="CASCADE"), index=True)
+    used_on_location_id: Mapped[int | None] = mapped_column(ForeignKey("locations.id", ondelete="SET NULL"), nullable=True)
+    used_on_location_name: Mapped[str] = mapped_column(String(100))
+    returned_to_location_name: Mapped[str] = mapped_column(String(100))
+    returned_by_user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    returned_by_username: Mapped[str] = mapped_column(String(80))
+    returned_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    wheel: Mapped["Wheel"] = relationship(back_populates="return_records")
+
+
+class WheelCycle(Base):
+    __tablename__ = "wheel_cycles"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    wheel_id: Mapped[int] = mapped_column(ForeignKey("wheels.id", ondelete="CASCADE"), index=True)
+    taken_by_name: Mapped[str] = mapped_column(String(100))
+    taken_by_user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    taken_by_username: Mapped[str] = mapped_column(String(80))
+    taken_from_location_id: Mapped[int | None] = mapped_column(ForeignKey("locations.id", ondelete="SET NULL"), nullable=True)
+    taken_from_location_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    used_on_location_id: Mapped[int | None] = mapped_column(ForeignKey("locations.id", ondelete="SET NULL"), nullable=True)
+    used_on_location_name: Mapped[str] = mapped_column(String(100))
+    taken_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    returned_to_location_id: Mapped[int | None] = mapped_column(ForeignKey("locations.id", ondelete="SET NULL"), nullable=True)
+    returned_to_location_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    returned_by_user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    returned_by_username: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    returned_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+    wheel: Mapped["Wheel"] = relationship(back_populates="cycles")
+    usage_records: Mapped[list["UsageRecord"]] = relationship(back_populates="cycle")
 
 
 class UsageRecord(Base):
@@ -188,6 +232,8 @@ class UsageRecord(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     wheel_id: Mapped[int] = mapped_column(ForeignKey("wheels.id"))
     wheel: Mapped["Wheel"] = relationship(back_populates="usage_records")
+    cycle_id: Mapped[int | None] = mapped_column(ForeignKey("wheel_cycles.id", ondelete="SET NULL"), nullable=True, index=True)
+    cycle: Mapped["WheelCycle | None"] = relationship(back_populates="usage_records")
 
     record_date: Mapped[date] = mapped_column(Date)
     meters_ground: Mapped[float] = mapped_column(Float)

@@ -380,6 +380,15 @@ def create_wheel(data: schemas.WheelCreate, db: Session = Depends(get_db), user:
     )
     if existing:
         raise HTTPException(400, "Kotouč s tímto výrobním číslem už v databázi existuje")
+    location = db.get(models.Location, data.location_id) if data.location_id else None
+    if data.status == models.WheelStatus.V_PROVOZU:
+        taken_by_name = (data.taken_by_name or "").strip()
+        if not location or location.type != models.LocationType.LINKA:
+            raise HTTPException(400, "Při zařazení kotouče do provozu vyberte výrobní linku.")
+        if not taken_by_name:
+            raise HTTPException(400, "Zadejte jméno osoby, která kotouč přebírá.")
+    elif data.status == models.WheelStatus.SKLAD and (not location or location.type != models.LocationType.SKLAD):
+        raise HTTPException(400, "Při zařazení kotouče do skladu vyberte skladové stanoviště.")
     wheel = crud.create_wheel(db, data, created_by=user)
     return crud.to_wheel_out(db, wheel)
 
@@ -396,12 +405,80 @@ def get_wheel(wheel_id: int, db: Session = Depends(get_db), _user: models.User =
     wheel = _get_wheel_or_404(db, wheel_id)
     out = schemas.WheelDetailOut.model_validate(wheel)
     out.total_meters_ground = crud.wheel_total_meters(db, wheel.id)
+    out.cycles = [
+        schemas.WheelCycleOut.model_validate(cycle).model_copy(update={
+            "meters_ground": sum(record.meters_ground for record in cycle.usage_records),
+        })
+        for cycle in wheel.cycles
+    ]
     return out
 
 
 @app.patch("/api/wheels/{wheel_id}", response_model=schemas.WheelOut)
-def patch_wheel(wheel_id: int, data: schemas.WheelUpdate, db: Session = Depends(get_db), _user: models.User = Depends(get_current_user)):
+def patch_wheel(wheel_id: int, data: schemas.WheelUpdate, db: Session = Depends(get_db), user: models.User = Depends(get_current_user)):
     wheel = _get_wheel_or_404(db, wheel_id)
+    if data.location_id is not None and data.location_id == wheel.location_id and (data.status is None or data.status == wheel.status):
+        raise HTTPException(400, "Kotouč už je na tomto stanovišti. Vyberte jiné místo.")
+    if wheel.status == models.WheelStatus.SKLAD and data.status == models.WheelStatus.V_PROVOZU:
+        line = db.get(models.Location, data.location_id) if data.location_id else None
+        taken_by_name = (data.taken_by_name or "").strip()
+        if not line or line.type != models.LocationType.LINKA:
+            raise HTTPException(400, "Při vydání kotouče vyberte výrobní linku.")
+        if not taken_by_name:
+            raise HTTPException(400, "Zadejte jméno osoby, která kotouč přebírá.")
+        if len(taken_by_name) > 100:
+            raise HTTPException(400, "Jméno osoby může mít nejvýše 100 znaků.")
+        db.add(models.WheelCycle(
+            wheel_id=wheel.id,
+            taken_by_name=taken_by_name,
+            taken_by_user_id=user.id,
+            taken_by_username=user.username,
+            taken_from_location_id=wheel.location_id,
+            taken_from_location_name=wheel.location.name if wheel.location else None,
+            used_on_location_id=line.id,
+            used_on_location_name=line.name,
+        ))
+    if wheel.status == models.WheelStatus.V_PROVOZU and data.status == models.WheelStatus.SKLAD:
+        used_on = db.get(models.Location, data.returned_from_location_id) if data.returned_from_location_id else None
+        returned_to = db.get(models.Location, data.location_id) if data.location_id else None
+        if not used_on or used_on.type != models.LocationType.LINKA:
+            raise HTTPException(400, "Při vrácení kotouče zadejte linku, na které byl používán.")
+        if not returned_to or returned_to.type != models.LocationType.SKLAD:
+            raise HTTPException(400, "Při vrácení kotouče vyberte cílový sklad.")
+        cycle = db.scalar(select(models.WheelCycle).where(
+            models.WheelCycle.wheel_id == wheel.id,
+            models.WheelCycle.returned_at.is_(None),
+        ).order_by(models.WheelCycle.taken_at.desc()))
+        if cycle is None:
+            taken_by_name = (data.taken_by_name or "").strip()
+            if not taken_by_name:
+                raise HTTPException(400, "U staršího záznamu zadejte jméno osoby, která kotouč používala.")
+            if len(taken_by_name) > 100:
+                raise HTTPException(400, "Jméno osoby může mít nejvýše 100 znaků.")
+            cycle = models.WheelCycle(
+                wheel_id=wheel.id,
+                taken_by_name=taken_by_name,
+                taken_by_user_id=None,
+                taken_by_username="Historický záznam",
+                used_on_location_id=used_on.id,
+                used_on_location_name=used_on.name,
+            )
+            db.add(cycle)
+        cycle.used_on_location_id = used_on.id
+        cycle.used_on_location_name = used_on.name
+        cycle.returned_to_location_id = returned_to.id
+        cycle.returned_to_location_name = returned_to.name
+        cycle.returned_by_user_id = user.id
+        cycle.returned_by_username = user.username
+        cycle.returned_at = datetime.utcnow()
+        db.add(models.WheelReturn(
+            wheel_id=wheel.id,
+            used_on_location_id=used_on.id,
+            used_on_location_name=used_on.name,
+            returned_to_location_name=returned_to.name,
+            returned_by_user_id=user.id,
+            returned_by_username=user.username,
+        ))
     wheel = crud.update_wheel(db, wheel, data)
     return crud.to_wheel_out(db, wheel)
 
@@ -415,7 +492,13 @@ def remove_wheel(wheel_id: int, db: Session = Depends(get_db), _user: models.Use
 @app.post("/api/wheels/{wheel_id}/usage", response_model=schemas.UsageRecordOut)
 def add_usage(wheel_id: int, data: schemas.UsageRecordCreate, db: Session = Depends(get_db), _user: models.User = Depends(get_current_user)):
     wheel = _get_wheel_or_404(db, wheel_id)
-    record = crud.add_usage_record(db, wheel, data)
+    if wheel.status != models.WheelStatus.V_PROVOZU:
+        raise HTTPException(400, "Broušení lze zaznamenat pouze tehdy, když je kotouč na výrobní lince.")
+    active_cycle = db.scalar(select(models.WheelCycle).where(
+        models.WheelCycle.wheel_id == wheel.id,
+        models.WheelCycle.returned_at.is_(None),
+    ).order_by(models.WheelCycle.taken_at.desc()))
+    record = crud.add_usage_record(db, wheel, data, cycle_id=active_cycle.id if active_cycle else None)
     return record
 
 

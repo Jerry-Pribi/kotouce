@@ -52,6 +52,15 @@ def create_wheel(db: Session, data: schemas.WheelCreate, created_by: models.User
     db.add(wheel)
     db.flush()
     location = db.get(models.Location, data.location_id) if data.location_id else None
+    if data.status == models.WheelStatus.V_PROVOZU and location:
+        db.add(models.WheelCycle(
+            wheel_id=wheel.id,
+            taken_by_name=(data.taken_by_name or "").strip(),
+            taken_by_user_id=created_by.id,
+            taken_by_username=created_by.username,
+            used_on_location_id=location.id,
+            used_on_location_name=location.name,
+        ))
     db.add(models.WheelCreationAudit(
         wheel_id=wheel.id,
         wheel_serial_number=wheel.serial_number,
@@ -69,7 +78,7 @@ def create_wheel(db: Session, data: schemas.WheelCreate, created_by: models.User
 
 
 def update_wheel(db: Session, wheel: models.Wheel, data: schemas.WheelUpdate) -> models.Wheel:
-    for field, value in data.model_dump(exclude_unset=True).items():
+    for field, value in data.model_dump(exclude_unset=True, exclude={"returned_from_location_id", "taken_by_name"}).items():
         setattr(wheel, field, value)
     db.commit()
     db.refresh(wheel)
@@ -82,9 +91,9 @@ def delete_wheel(db: Session, wheel: models.Wheel) -> None:
 
 
 def add_usage_record(
-    db: Session, wheel: models.Wheel, data: schemas.UsageRecordCreate
+    db: Session, wheel: models.Wheel, data: schemas.UsageRecordCreate, cycle_id: int | None = None
 ) -> models.UsageRecord:
-    record = models.UsageRecord(wheel_id=wheel.id, **data.model_dump())
+    record = models.UsageRecord(wheel_id=wheel.id, cycle_id=cycle_id, **data.model_dump())
     db.add(record)
     db.commit()
     db.refresh(record)
@@ -94,6 +103,15 @@ def add_usage_record(
 def to_wheel_out(db: Session, wheel: models.Wheel) -> schemas.WheelOut:
     out = schemas.WheelOut.model_validate(wheel)
     out.total_meters_ground = wheel_total_meters(db, wheel.id)
+    active_cycle = db.scalar(select(models.WheelCycle).where(
+        models.WheelCycle.wheel_id == wheel.id,
+        models.WheelCycle.returned_at.is_(None),
+    ).order_by(models.WheelCycle.taken_at.desc()))
+    if active_cycle:
+        out.current_taken_by_name = active_cycle.taken_by_name
+        out.current_taken_by_username = active_cycle.taken_by_username
+        out.current_line_name = active_cycle.used_on_location_name
+        out.current_taken_at = active_cycle.taken_at
     return out
 
 

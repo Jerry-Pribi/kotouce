@@ -60,6 +60,7 @@ class WheelCreate(BaseModel):
     max_lifetime_m: float | None = None
     received_date: date | None = None
     note: str | None = None
+    taken_by_name: str | None = None
 
 
 class WheelUpdate(BaseModel):
@@ -68,6 +69,8 @@ class WheelUpdate(BaseModel):
     max_lifetime_m: float | None = None
     retired_date: date | None = None
     note: str | None = None
+    returned_from_location_id: int | None = None
+    taken_by_name: str | None = None
 
 
 class WheelOut(BaseModel):
@@ -83,11 +86,46 @@ class WheelOut(BaseModel):
     retired_date: date | None
     note: str | None
     total_meters_ground: float = 0.0
+    current_taken_by_name: str | None = None
+    current_taken_by_username: str | None = None
+    current_line_name: str | None = None
+    current_taken_at: datetime | None = None
+    model_config = ConfigDict(from_attributes=True)
+
+
+class WheelReturnOut(BaseModel):
+    id: int
+    wheel_id: int
+    used_on_location_id: int | None
+    used_on_location_name: str
+    returned_to_location_name: str
+    returned_by_username: str
+    returned_at: datetime
+    model_config = ConfigDict(from_attributes=True)
+
+
+class WheelCycleOut(BaseModel):
+    id: int
+    wheel_id: int
+    taken_by_name: str
+    taken_by_username: str
+    taken_from_location_id: int | None
+    taken_from_location_name: str | None
+    used_on_location_id: int | None
+    used_on_location_name: str
+    taken_at: datetime
+    returned_to_location_id: int | None
+    returned_to_location_name: str | None
+    returned_by_username: str | None
+    returned_at: datetime | None
+    meters_ground: float = 0.0
     model_config = ConfigDict(from_attributes=True)
 
 
 class WheelDetailOut(WheelOut):
     usage_records: list[UsageRecordOut] = []
+    return_records: list[WheelReturnOut] = []
+    cycles: list[WheelCycleOut] = []
 
 
 class DashboardCell(BaseModel):

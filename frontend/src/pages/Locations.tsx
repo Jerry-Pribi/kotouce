@@ -41,7 +41,7 @@ export function Locations() {
   }
 
   return (
-    <div>
+    <div className="locations-page">
       {/* FORMULÁŘ PRO PŘIDÁNÍ STANOVIŠTĚ */}
       {!isAdmin && <div className="admin-only-note">Zakládání nových stanovišť spravuje administrátor.</div>}
       {isAdmin && <div className="card">
@@ -95,7 +95,7 @@ export function Locations() {
       {/* SEZNAM STANOVIŠŤ */}
       <div className="data-table-container">
         <div style={{ padding: "12px 16px", background: "#f8fafc", borderBottom: "1px solid var(--border-light)" }}>
-          <span style={{ fontSize: "12.5px", color: "var(--text-muted)", fontWeight: 600 }}>
+          <span className="locations-count-label" style={{ color: "var(--text-muted)", fontWeight: 700 }}>
             Aktivní pracoviště a sklady v Chudeřicích ({locations.length})
           </span>
         </div>
@@ -117,7 +117,7 @@ export function Locations() {
                   </span>
                 </td>
                 <td>
-                  <span style={{ fontSize: "12px", color: "var(--text-muted)" }}>
+                  <span className="location-type-label" style={{ color: "var(--text-muted)" }}>
                     {TYPE_LABELS[l.type]}
                   </span>
                 </td>
