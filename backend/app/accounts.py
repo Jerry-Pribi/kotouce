@@ -8,7 +8,7 @@ přihlášení své firmy a audit mazání své firmy. Pravidla jsou stejná jak
 """
 import re
 from collections.abc import Callable
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Response
 from sqlalchemy import select
@@ -87,7 +87,7 @@ def make_accounts_router(prefix: str, require_admin: Callable[..., models.User],
         user.password_hash = hash_password(data.password)
         for session in user.sessions:
             if session.ended_at is None:
-                session.ended_at = datetime.utcnow()
+                session.ended_at = models.utc_now()
         db.commit()
         return Response(status_code=204)
 
@@ -116,11 +116,11 @@ def make_accounts_router(prefix: str, require_admin: Callable[..., models.User],
         check_manage(user, admin, "Odstranit účet")
         for session in user.sessions:
             if session.ended_at is None:
-                session.ended_at = datetime.utcnow()
+                session.ended_at = models.utc_now()
         db.add(models.UserDeletionAudit(
             actor_user_id=admin.id, actor_username=admin.username,
             deleted_user_id=user.id, deleted_username=user.username, deleted_role=user.role,
-            deleted_at=datetime.utcnow(), location_id=admin.location_id,
+            deleted_at=models.utc_now(), location_id=admin.location_id,
         ))
         db.delete(user)
         db.commit()
@@ -128,7 +128,7 @@ def make_accounts_router(prefix: str, require_admin: Callable[..., models.User],
 
     @router.get("/sessions", response_model=list[schemas.UserSessionOut])
     def list_sessions(db: Session = Depends(get_db), admin: models.User = Depends(require_admin)):
-        now = datetime.utcnow()
+        now = models.utc_now()
         active_after = now - timedelta(minutes=ACTIVE_WINDOW_MINUTES)
         rows = db.scalars(
             select(models.UserSession)

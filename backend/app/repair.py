@@ -53,7 +53,7 @@ def _current_here(db: Session, wheel: models.Wheel, user: models.User) -> models
     current = crud.open_reprofiling(wheel)
     if current is None:
         current = models.WheelReprofiling(
-            wheel_id=wheel.id, sent_at=datetime.utcnow(), sent_by_username="Historický záznam",
+            wheel_id=wheel.id, sent_at=models.utc_now(), sent_by_username="Historický záznam",
             meters_before=crud.wheel_total_meters(db, wheel.id),
         )
         db.add(current)
@@ -142,7 +142,7 @@ def accept(wheel_id: int, db: Session = Depends(get_db), user: models.User = Dep
     current = _current_here(db, wheel, user)
     if current.result:
         raise HTTPException(400, "Reprofilace už je nahlášená jako dokončená")
-    current.accepted_at, current.accepted_by_username = datetime.utcnow(), user.username
+    current.accepted_at, current.accepted_by_username = models.utc_now(), user.username
     db.commit()
     db.refresh(wheel)
     return _to_out(db, wheel, user)
@@ -153,7 +153,7 @@ def done(wheel_id: int, data: schemas.RepairDone, db: Session = Depends(get_db),
     """Reprofilace hotová — kotouč je připravený k odvozu do AGC. Lze zapsat znovu (např. opravit cenu)."""
     wheel = _get_wheel(db, wheel_id, user)
     current = _current_here(db, wheel, user)
-    now = datetime.utcnow()
+    now = models.utc_now()
     if current.accepted_at is None:  # převzetí se nemuselo zapsat zvlášť
         current.accepted_at, current.accepted_by_username = now, user.username
     current.result, current.finished_at, current.finished_by_username = "hotovo", now, user.username
@@ -169,7 +169,7 @@ def failed(wheel_id: int, data: schemas.RepairFailed, db: Session = Depends(get_
     """Kotouč nejde reprofilovat (např. málo materiálu) — AGC rozhodne o vyřazení."""
     wheel = _get_wheel(db, wheel_id, user)
     current = _current_here(db, wheel, user)
-    now = datetime.utcnow()
+    now = models.utc_now()
     if current.accepted_at is None:
         current.accepted_at, current.accepted_by_username = now, user.username
     current.result, current.finished_at, current.finished_by_username = "nelze", now, user.username

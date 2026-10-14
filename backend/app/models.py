@@ -9,7 +9,7 @@ Domain recap (from the process description):
   ("Průvodní doklad diamantového kotouče") -> UsageRecord replaces that.
 """
 import enum
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 
 from sqlalchemy import (
     String,
@@ -26,6 +26,14 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .database import Base
+
+
+def utc_now() -> datetime:
+    """Aktuální čas v UTC bez časové zóny — tak, jak ho databáze ukládá.
+
+    Náhrada za zastaralé datetime.utcnow() (Python 3.12+).
+    """
+    return datetime.now(timezone.utc).replace(tzinfo=None)
 
 
 class WheelStatus(str, enum.Enum):
@@ -59,7 +67,7 @@ class User(Base):
         default=UserRole.USER,
     )
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
     last_login_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     # Ke které firmě účet patří: NULL = AGC, jinak firma reprofilace (místo typu „reprofilace“).
     # Každá firma má vlastní megaAdmina, adminy a uživatele — úplně odděleně od AGC.
@@ -77,8 +85,8 @@ class UserSession(Base):
     token_hash: Mapped[str] = mapped_column(String(64), unique=True, index=True)
     ip_address: Mapped[str | None] = mapped_column(String(45), nullable=True)
     user_agent: Mapped[str | None] = mapped_column(String(500), nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
-    last_seen_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
+    last_seen_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
     expires_at: Mapped[datetime] = mapped_column(DateTime)
     ended_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     location_id: Mapped[int | None] = mapped_column(Integer, nullable=True, index=True)  # firma účtu (NULL = AGC)
@@ -97,7 +105,7 @@ class UserDeletionAudit(Base):
     deleted_role: Mapped[UserRole] = mapped_column(
         Enum(UserRole, values_callable=lambda x: [e.value for e in x], native_enum=False, length=20)
     )
-    deleted_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    deleted_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
     location_id: Mapped[int | None] = mapped_column(Integer, nullable=True, index=True)  # firma (NULL = AGC)
 
 
@@ -116,7 +124,7 @@ class WheelCreationAudit(Base):
     initial_location_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
     created_by_user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     created_by_username: Mapped[str] = mapped_column(String(80))
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
 
 
 class Manufacturer(Base):
@@ -180,7 +188,7 @@ class Wheel(Base):
     retired_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     note: Mapped[str | None] = mapped_column(Text, nullable=True)
 
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
 
     usage_records: Mapped[list["UsageRecord"]] = relationship(
         back_populates="wheel", cascade="all, delete-orphan", order_by="UsageRecord.record_date"
@@ -206,7 +214,7 @@ class WheelReturn(Base):
     returned_to_location_name: Mapped[str] = mapped_column(String(100))
     returned_by_user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     returned_by_username: Mapped[str] = mapped_column(String(80))
-    returned_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    returned_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
 
     wheel: Mapped["Wheel"] = relationship(back_populates="return_records")
 
@@ -223,7 +231,7 @@ class WheelCycle(Base):
     taken_from_location_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
     used_on_location_id: Mapped[int | None] = mapped_column(ForeignKey("locations.id", ondelete="SET NULL"), nullable=True)
     used_on_location_name: Mapped[str] = mapped_column(String(100))
-    taken_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    taken_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
     returned_to_location_id: Mapped[int | None] = mapped_column(ForeignKey("locations.id", ondelete="SET NULL"), nullable=True)
     returned_to_location_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
     returned_by_user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
@@ -244,7 +252,7 @@ class WheelReprofiling(Base):
     location_id: Mapped[int | None] = mapped_column(ForeignKey("locations.id", ondelete="SET NULL"), nullable=True, index=True)
     location_name: Mapped[str | None] = mapped_column(String(100), nullable=True)  # firma / místo reprofilace
 
-    sent_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    sent_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
     sent_by_username: Mapped[str] = mapped_column(String(80))
     meters_before: Mapped[float] = mapped_column(Float, default=0.0)  # nabroušeno do odeslání
 
@@ -279,4 +287,4 @@ class UsageRecord(Base):
     operator: Mapped[str | None] = mapped_column(String(100), nullable=True)
     note: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)

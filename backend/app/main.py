@@ -1,5 +1,5 @@
 import os
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 from fastapi import FastAPI, Depends, HTTPException, Query, Request, Response
 from fastapi.security import HTTPAuthorizationCredentials
@@ -88,7 +88,7 @@ def login(data: schemas.LoginRequest, request: Request, db: Session = Depends(ge
     if not is_repair and data.portal == "reprofilace":
         raise HTTPException(403, "Účty AGC se přihlašují v sekci AGC — přepněte se nahoře na „AGC“")
 
-    now = datetime.utcnow()
+    now = models.utc_now()
     token = new_session_token()
     user.last_login_at = now
     db.add(models.UserSession(
@@ -123,7 +123,7 @@ def logout(
             models.UserSession.ended_at.is_(None),
         ))
         if session:
-            session.ended_at = datetime.utcnow()
+            session.ended_at = models.utc_now()
             db.commit()
     return Response(status_code=204)
 
@@ -370,7 +370,7 @@ def patch_wheel(wheel_id: int, data: schemas.WheelUpdate, db: Session = Depends(
         cycle.returned_to_location_name = returned_to.name
         cycle.returned_by_user_id = user.id
         cycle.returned_by_username = user.username
-        cycle.returned_at = datetime.utcnow()
+        cycle.returned_at = models.utc_now()
         db.add(models.WheelReturn(
             wheel_id=wheel.id,
             used_on_location_id=used_on.id,

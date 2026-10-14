@@ -1,4 +1,3 @@
-from datetime import datetime
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -150,7 +149,7 @@ def track_reprofiling(
     - změna místa reprofilace u kotouče na reprofilaci: záznam dostane firmu,
     - stav z Na reprofilaci jinam: AGC kotouč převzalo zpět (nebo vyřadilo).
     """
-    now = datetime.utcnow()
+    now = models.utc_now()
     current = open_reprofiling(wheel)
     reprof_location = location if location and location.type == models.LocationType.REPROFILACE else None
     status_after = new_status or old_status

@@ -4,7 +4,6 @@ Každý účet patří k jedné firmě: AGC (location_id NULL), nebo firma repro
 (location_id = její místo reprofilace). Účty firmy smí jen do /api/repair/...,
 do evidence AGC nemají přístup — a obráceně.
 """
-from datetime import datetime
 
 from fastapi import Depends, HTTPException
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -25,7 +24,7 @@ def get_session_user(
     """Přihlášený uživatel libovolné role (AGC i reprofilace)."""
     if not credentials or credentials.scheme.lower() != "bearer":
         raise HTTPException(401, "Přihlášení je vyžadováno")
-    now = datetime.utcnow()
+    now = models.utc_now()
     session = db.scalar(
         select(models.UserSession).where(
             models.UserSession.token_hash == hash_token(credentials.credentials),
