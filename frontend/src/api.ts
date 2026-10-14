@@ -61,6 +61,9 @@ export const api = {
   adminUserDeletionAudits: () => request<UserDeletionAudit[]>("/api/admin/audits/user-deletions"),
   /** Firmy reprofilace: AGC jen založí první účet firmy, dál si firma účty spravuje sama. */
   repairCompanies: () => request<RepairCompany[]>("/api/admin/repair-companies"),
+  /** Nová firma jedním krokem: místo reprofilace + její první účet (megaAdmin firmy). */
+  createRepairCompany: (name: string, username: string, password: string) =>
+    request<RepairCompany>("/api/admin/repair-companies", { method: "POST", body: JSON.stringify({ name, username, password }) }),
   createCompanyFirstAdmin: (locationId: number, username: string, password: string) =>
     request<RepairCompany>(`/api/admin/repair-companies/${locationId}/first-admin`, { method: "POST", body: JSON.stringify({ username, password }) }),
   adminWheelCreationAudits: () => request<WheelCreationAudit[]>("/api/admin/audits/wheel-creations"),

@@ -49,7 +49,7 @@ export function Locations() {
           <div>
             <div className="card-title">Nové stanoviště kotoučů</div>
             <div className="card-subtitle">
-              Založení nové výrobní linky, meziskladu nebo prostoru údržby v závodě
+              Založení nové výrobní linky nebo meziskladu v závodě. Firmu reprofilace přidá megaAdmin v Administraci → Firmy reprofilace.
             </div>
           </div>
         </div>
@@ -71,7 +71,8 @@ export function Locations() {
             <div className="filter-field">
               <label htmlFor="loc-type">Druh provozu</label>
               <select id="loc-type" value={type} onChange={(e) => setType(e.target.value as LocationType)}>
-                {Object.entries(TYPE_LABELS).map(([k, v]) => (
+                {/* Firmy reprofilace se přidávají v Administraci (i s účtem firmy) */}
+                {Object.entries(TYPE_LABELS).filter(([k]) => k !== "reprofilace").map(([k, v]) => (
                   <option key={k} value={k}>
                     {v}
                   </option>

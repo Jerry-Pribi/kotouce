@@ -4,7 +4,7 @@ from datetime import timedelta
 from fastapi import FastAPI, Depends, HTTPException, Query, Request, Response
 from fastapi.security import HTTPAuthorizationCredentials
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
 from . import models, schemas, crud
@@ -57,14 +57,14 @@ def initialize_admin() -> None:
         if existing:
             existing.role = models.UserRole.MEGA_ADMIN
             db.execute(
-                models.User.__table__.update()
+                update(models.User)
                 .where(models.User.id != existing.id, models.User.role == models.UserRole.MEGA_ADMIN,
                        models.User.location_id.is_(None))
                 .values(role=models.UserRole.ADMIN)
             )
             db.commit()
             return
-        db.execute(models.User.__table__.update().where(
+        db.execute(update(models.User).where(
             models.User.role == models.UserRole.MEGA_ADMIN, models.User.location_id.is_(None)
         ).values(role=models.UserRole.ADMIN))
         db.add(models.User(username=username, password_hash=hash_password(password), role=models.UserRole.MEGA_ADMIN))
@@ -149,6 +149,28 @@ def list_repair_companies(db: Session = Depends(get_db), _admin: models.User = D
     return out
 
 
+@app.post("/api/admin/repair-companies", response_model=schemas.RepairCompanyOut, status_code=201)
+def create_repair_company(
+    data: schemas.RepairCompanyCreate,
+    db: Session = Depends(get_db),
+    _admin: models.User = Depends(require_mega_admin),
+):
+    """Nová firma reprofilace jedním krokem: místo reprofilace (pro evidenci kotoučů) + její megaAdmin."""
+    name = data.name.strip()
+    if len(name) < 2:
+        raise HTTPException(400, "Zadejte název firmy")
+    if db.scalar(select(models.Location.id).where(models.Location.name == name)):
+        raise HTTPException(409, "Firma nebo stanoviště s tímto názvem už existuje")
+    username = validate_new_account(db, data.username, data.password)
+    company = models.Location(name=name, type=models.LocationType.REPROFILACE)
+    db.add(company)
+    db.flush()
+    db.add(models.User(username=username, password_hash=hash_password(data.password),
+                       role=models.UserRole.MEGA_ADMIN, location_id=company.id))
+    db.commit()
+    return schemas.RepairCompanyOut(id=company.id, name=company.name, accounts=1)
+
+
 @app.post("/api/admin/repair-companies/{location_id}/first-admin", response_model=schemas.RepairCompanyOut, status_code=201)
 def create_company_first_admin(
     location_id: int,
@@ -223,6 +245,9 @@ def list_locations(db: Session = Depends(get_db), _user: models.User = Depends(g
 
 @app.post("/api/locations", response_model=schemas.LocationOut)
 def create_location(data: schemas.LocationCreate, db: Session = Depends(get_db), _admin: models.User = Depends(require_admin)):
+    # Firma reprofilace vzniká jen v Administraci (megaAdmin) i s prvním účtem — ne jako holé stanoviště
+    if data.type == models.LocationType.REPROFILACE:
+        raise HTTPException(400, "Firmu reprofilace přidá megaAdmin v Administraci → Firmy reprofilace")
     existing = db.scalar(select(models.Location).where(models.Location.name == data.name))
     if existing:
         raise HTTPException(400, "Lokace s tímto názvem už existuje")

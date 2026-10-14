@@ -279,3 +279,10 @@ class RepairCompanyOut(BaseModel):
 class CompanyFirstAdmin(BaseModel):
     username: str
     password: str
+
+
+class RepairCompanyCreate(BaseModel):
+    """Nová firma reprofilace a její první účet (megaAdmin firmy)."""
+    name: str
+    username: str
+    password: str
