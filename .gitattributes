@@ -1,0 +1,2 @@
+# Skripty pro Docker (Linux) musí mít konce řádků LF i po stažení na Windows
+*.sh text eol=lf

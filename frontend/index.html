@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="cs">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
@@ -10,7 +10,16 @@
       href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap"
       rel="stylesheet"
     />
-    <title>Kotouč Manager · AGC Automotive Czech</title>
+    <title>Management kotoučů · AGC Automotive Czech</title>
+    <script>
+      // Světlý / tmavý režim ještě před vykreslením (bez probliknutí): uložená volba, jinak nastavení systému
+      (function () {
+        var t = null;
+        try { t = localStorage.getItem("kotouc_theme"); } catch (e) {}
+        if (t !== "light" && t !== "dark") t = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+        document.documentElement.dataset.theme = t;
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

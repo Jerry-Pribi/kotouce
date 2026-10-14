@@ -5,6 +5,8 @@ import type { Wheel, WheelStatus, Location, Manufacturer, Profile } from "../typ
 import { StatusBadge } from "../components/StatusBadge";
 import { AddWheelModal } from "../components/AddWheelModal";
 
+const formatMeters = (value: number) => value.toLocaleString("cs-CZ", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+
 export function Wheels() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -15,6 +17,9 @@ export function Wheels() {
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
+  const [showAddOptions, setShowAddOptions] = useState(false);
+  const [addDestination, setAddDestination] = useState<"sklad" | "v_provozu">("sklad");
+  const [wearSort, setWearSort] = useState<"asc" | "desc">("desc");
 
   // Filtry ze stavu / URL parametrů
   const search = searchParams.get("hledat") || "";
@@ -91,9 +96,18 @@ export function Wheels() {
   }
 
   const hasActiveFilters = Boolean(search || status || diameter || manufacturer || profile || locationId);
+  const sortedWheels = [...wheels].sort((a, b) => {
+    const wearA = a.max_lifetime_m ? (a.total_meters_ground ?? 0) / a.max_lifetime_m : null;
+    const wearB = b.max_lifetime_m ? (b.total_meters_ground ?? 0) / b.max_lifetime_m : null;
+    if (wearA === null && wearB !== null) return 1;
+    if (wearB === null && wearA !== null) return -1;
+    if (wearA === null || wearB === null) return a.serial_number.localeCompare(b.serial_number);
+    return (wearSort === "desc" ? wearB - wearA : wearA - wearB)
+      || a.serial_number.localeCompare(b.serial_number);
+  });
 
   return (
-    <div>
+    <div className="wheels-page">
       {/* FILTRAČNÍ LIŠTA */}
       <div className="filter-bar">
         {/* Rychlé přepínání podle stavu v oběhu */}
@@ -214,13 +228,19 @@ export function Wheels() {
 
       {/* DATOVÁ TABULKA */}
       <div className="data-table-container">
-        <div style={{ padding: "12px 16px", background: "#f8fafc", borderBottom: "1px solid var(--border-light)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div style={{ padding: "12px 16px", background: "var(--t-bg-f8fafc, #f8fafc)", borderBottom: "1px solid var(--border-light)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <span style={{ fontSize: "12.5px", color: "var(--text-muted)", fontWeight: 600 }}>
             {loading ? "Vyhledávám…" : `Zobrazeno ${wheels.length} kotoučů`}
           </span>
-          <button className="btn btn-primary" style={{ padding: "5px 12px", fontSize: "12px" }} onClick={() => setShowAdd(true)}>
-            + Přijmout kotouč na sklad
-          </button>
+          <div className="wheel-add-actions">
+            <div className="wheel-add-menu">
+              <button className="btn btn-primary" aria-haspopup="menu" aria-expanded={showAddOptions} onClick={() => setShowAddOptions((open) => !open)}>＋ Přidat kotouč ▾</button>
+              {showAddOptions && <div className="wheel-add-menu-options" role="menu">
+                <button role="menuitem" onClick={() => { setAddDestination("sklad"); setShowAddOptions(false); setShowAdd(true); }}>Přijmout do skladu</button>
+                <button role="menuitem" onClick={() => { setAddDestination("v_provozu"); setShowAddOptions(false); setShowAdd(true); }}>Předat na linku</button>
+              </div>}
+            </div>
+          </div>
         </div>
 
         <table className="data-table">
@@ -230,7 +250,16 @@ export function Wheels() {
               <th>Výrobce a specifikace</th>
               <th>Aktuální stanoviště</th>
               <th>Stav oběhu</th>
-              <th style={{ minWidth: 160 }}>Opotřebení nástroje</th>
+              <th style={{ minWidth: 190 }} aria-sort={wearSort === "desc" ? "descending" : "ascending"}>
+                <button
+                  type="button"
+                  className="wear-sort-button"
+                  onClick={() => setWearSort((current) => current === "desc" ? "asc" : "desc")}
+                  title={wearSort === "desc" ? "Seřazeno od nejvíce opotřebených; kliknutím zobrazíte nejméně opotřebené první" : "Seřazeno od nejméně opotřebených; kliknutím zobrazíte nejvíce opotřebené první"}
+                >
+                  Opotřebení nástroje <span aria-hidden="true">{wearSort === "desc" ? "↓" : "↑"}</span>
+                </button>
+              </th>
               <th style={{ textAlign: "right" }}>Akce</th>
             </tr>
           </thead>
@@ -242,7 +271,7 @@ export function Wheels() {
                 </td>
               </tr>
             ) : (
-              wheels.map((w) => {
+              sortedWheels.map((w) => {
                 const total = w.total_meters_ground ?? 0;
                 const max = w.max_lifetime_m;
                 const pct = max ? Math.min(100, (total / max) * 100) : null;
@@ -263,10 +292,15 @@ export function Wheels() {
                     </td>
                     <td>
                       {w.location ? (
-                        <span className="location-chip">
-                          <span className={`loc-dot ${w.location.type}`}></span>
-                          {w.location.name}
-                        </span>
+                        <div className="wheel-placement-cell">
+                          <span className="location-chip">
+                            <span className={`loc-dot ${w.location.type}`}></span>
+                            {w.location.name}
+                          </span>
+                          {w.status === "v_provozu" && <div className="wheel-placement-meta">
+                            {w.current_taken_by_name ? <><strong>Linka použití:</strong> {w.current_line_name ?? w.location.name}<br /><strong>Převzal:</strong> {w.current_taken_by_name}<br /><strong>Zaevidoval:</strong> {w.current_taken_by_username ?? "—"}</> : "Předání na linku není zaznamenané"}
+                          </div>}
+                        </div>
                       ) : (
                         <span style={{ color: "var(--text-subtle)", fontSize: "12px" }}>— neevidováno —</span>
                       )}
@@ -284,7 +318,7 @@ export function Wheels() {
                             ></div>
                           </div>
                           <div className="progress-text">
-                            <span>{Math.round(total)} m</span>
+                            <span>{formatMeters(total)} m</span>
                             <span style={{ fontWeight: pct && pct >= 85 ? 700 : 400 }}>
                               {pct ? `${Math.round(pct)} %` : "—"}
                             </span>
@@ -292,7 +326,7 @@ export function Wheels() {
                         </div>
                       ) : (
                         <span style={{ color: "var(--text-muted)", fontSize: "11.5px", fontFamily: "var(--font-mono)" }}>
-                          {Math.round(total)} m (bez limitu)
+                          {formatMeters(total)} m (bez limitu)
                         </span>
                       )}
                     </td>
@@ -312,6 +346,7 @@ export function Wheels() {
       {showAdd && (
         <AddWheelModal
           locations={locations}
+          initialDestination={addDestination}
           onClose={() => setShowAdd(false)}
           onCreated={() => {
             setShowAdd(false);

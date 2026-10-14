@@ -23,7 +23,7 @@ if not DATABASE_URL:
     else:
         auth = DB_USER
 
-    DATABASE_URL = f"mysql+pymysql://{auth}@{DB_HOST}:{DB_PORT}/{DB_NAME}?charset=utf8mb4"
+    DATABASE_URL = f"mariadb+pymysql://{auth}@{DB_HOST}:{DB_PORT}/{DB_NAME}?charset=utf8mb4"
 
 engine = create_engine(
     DATABASE_URL,

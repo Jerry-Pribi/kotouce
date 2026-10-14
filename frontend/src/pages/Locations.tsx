@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "../api";
 import type { Location, LocationType } from "../types";
+import { useAuth } from "../components/AuthContext";
 
 const TYPE_LABELS: Record<LocationType, string> = {
   sklad: "Skladová hala",
@@ -9,6 +10,8 @@ const TYPE_LABELS: Record<LocationType, string> = {
 };
 
 export function Locations() {
+  const { user } = useAuth();
+  const isAdmin = user?.role !== "user";
   const [locations, setLocations] = useState<Location[]>([]);
   const [name, setName] = useState("");
   const [type, setType] = useState<LocationType>("sklad");
@@ -38,9 +41,10 @@ export function Locations() {
   }
 
   return (
-    <div>
+    <div className="locations-page">
       {/* FORMULÁŘ PRO PŘIDÁNÍ STANOVIŠTĚ */}
-      <div className="card">
+      {!isAdmin && <div className="admin-only-note">Zakládání nových stanovišť spravuje administrátor.</div>}
+      {isAdmin && <div className="card">
         <div className="card-header">
           <div>
             <div className="card-title">Nové stanoviště kotoučů</div>
@@ -82,16 +86,16 @@ export function Locations() {
         </form>
 
         {error && (
-          <div style={{ marginTop: 12, padding: "8px 12px", background: "#fef2f2", color: "#b91c1c", borderRadius: 4, fontSize: "12.5px" }}>
+          <div style={{ marginTop: 12, padding: "8px 12px", background: "var(--st-vyrazen-bg)", color: "var(--st-vyrazen-color)", borderRadius: 4, fontSize: "12.5px" }}>
             {error}
           </div>
         )}
-      </div>
+      </div>}
 
       {/* SEZNAM STANOVIŠŤ */}
       <div className="data-table-container">
-        <div style={{ padding: "12px 16px", background: "#f8fafc", borderBottom: "1px solid var(--border-light)" }}>
-          <span style={{ fontSize: "12.5px", color: "var(--text-muted)", fontWeight: 600 }}>
+        <div style={{ padding: "12px 16px", background: "var(--t-bg-f8fafc, #f8fafc)", borderBottom: "1px solid var(--border-light)" }}>
+          <span className="locations-count-label" style={{ color: "var(--text-muted)", fontWeight: 700 }}>
             Aktivní pracoviště a sklady v Chudeřicích ({locations.length})
           </span>
         </div>
@@ -113,7 +117,7 @@ export function Locations() {
                   </span>
                 </td>
                 <td>
-                  <span style={{ fontSize: "12px", color: "var(--text-muted)" }}>
+                  <span className="location-type-label" style={{ color: "var(--text-muted)" }}>
                     {TYPE_LABELS[l.type]}
                   </span>
                 </td>

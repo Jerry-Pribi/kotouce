@@ -47,9 +47,31 @@ export function Dashboard() {
 
   return (
     <div>
-      {/* 1. ŽIVOTNÍ CYKLUS KOTOUČŮ (WORKFLOW) */}
+      <section className="dashboard-intro">
+        <div>
+          <span className="eyebrow">PROVOZNÍ PŘEHLED</span>
+          <h1>Správa brusných kotoučů</h1>
+          <p>Rychlý přehled zásob, provozu a životnosti nástrojů.</p>
+        </div>
+        <div className="dashboard-total"><span>Celkem v evidenci</span><strong>{data.total_wheels}</strong><small>kotoučů</small></div>
+      </section>
+
+      {data.wheels_near_end_of_life > 0 && (
+        <div className="alert-banner">
+          <div className="alert-content">
+            <div className="alert-icon">!</div>
+            <div>
+              <div className="alert-title">{data.wheels_near_end_of_life} {data.wheels_near_end_of_life === 1 ? "kotouč se blíží" : data.wheels_near_end_of_life < 5 ? "kotouče se blíží" : "kotoučů se blíží"} limitu opotřebení</div>
+              <div className="alert-text">Přes 85 % kapacity · připravte náhradní kus nebo reprofilaci.</div>
+            </div>
+          </div>
+          <Link to="/kotouce?status=v_provozu" className="alert-action">Zobrazit kotouče →</Link>
+        </div>
+      )}
+
+      {/* Přehled stavů: každá karta vede do filtrovaného seznamu. */}
       <div className="workflow-container">
-        <div className="section-label">Aktuální oběh nástrojů v závodě (celkem {data.total_wheels} ks)</div>
+        <div className="section-label">Stav kotoučů <span>· vyberte stav pro otevření seznamu</span></div>
         <div className="workflow-strip">
           <div
             className="workflow-step step-sklad"
@@ -105,27 +127,7 @@ export function Dashboard() {
         </div>
       </div>
 
-      {/* 2. UPOZORNĚNÍ PRO ÚDRŽBU A NÁKUP (PREDIKCE ZE SLIDU 5 & 11) */}
-      {data.wheels_near_end_of_life > 0 && (
-        <div className="alert-banner">
-          <div className="alert-content">
-            <div className="alert-icon">!</div>
-            <div>
-              <div className="alert-title">
-                Plánování výměny: {data.wheels_near_end_of_life} {data.wheels_near_end_of_life === 1 ? "kotouč" : data.wheels_near_end_of_life < 5 ? "kotouče" : "kotoučů"} se blíží limitu opotřebení
-              </div>
-              <div className="alert-text">
-                Nástroje mají nabroušeno přes 85 % své maximální kapacity. Je potřeba připravit náhradní kus ze skladu nebo zadat reprofilaci.
-              </div>
-            </div>
-          </div>
-          <Link to="/kotouce?status=v_provozu" className="alert-action">
-            Zkontrolovat nasazené kotouče →
-          </Link>
-        </div>
-      )}
-
-      {/* 3. SKLADOVÁ MATICE (VÝROBCE × PRŮMĚR × PROFIL) */}
+      {/* SKLADOVÁ MATICE (VÝROBCE × PRŮMĚR × PROFIL) */}
       <div className="card">
         <div className="card-header">
           <div>
@@ -145,7 +147,7 @@ export function Dashboard() {
               <tr>
                 <th rowSpan={2} className="mfr-col" style={{ minWidth: 160 }}>Výrobce / Dodavatel</th>
                 {diameters.map((d) => (
-                  <th key={d} colSpan={profilesByDiameter[d]?.length ?? 1} style={{ borderBottom: "2px solid #cbd5e1" }}>
+                  <th key={d} colSpan={profilesByDiameter[d]?.length ?? 1} style={{ borderBottom: "2px solid var(--border-medium)" }}>
                     Průměr Ø {d} mm
                   </th>
                 ))}

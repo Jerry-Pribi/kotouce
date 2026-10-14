@@ -1,0 +1,303 @@
+/* ========================================================
+   REPROFILACE — aplikace pro firmu, která přebrušuje kotouče
+   Grafit + jantarová (barva rozžhaveného kovu u broušení).
+   Velké ovládací prvky: obsluhu zvládne i člověk, který s počítačem moc nepracuje.
+   ======================================================== */
+
+.rp-app {
+  --rp-bg: #f4f3f0;
+  --rp-surface: #ffffff;
+  --rp-surface-2: #faf9f7;
+  --rp-line: #e6e2da;
+  --rp-line-strong: #d3cdc2;
+  --rp-text: #1d2129;
+  --rp-text-2: #545b66;
+  --rp-text-3: #8a909a;
+  --rp-side: #1b1f27;
+  --rp-side-2: #13161c;
+  --rp-side-text: #c9ccd2;
+  --rp-amber: #e8900c;
+  --rp-amber-strong: #b86a00;
+  --rp-amber-soft: #fff1da;
+  --rp-blue: #2563c9;
+  --rp-blue-soft: #e5eefc;
+  --rp-green: #0f8a60;
+  --rp-green-soft: #e1f5ec;
+  --rp-red: #c23434;
+  --rp-red-soft: #fde8e8;
+  --rp-excel: #107c41;
+  --rp-shadow: 0 1px 2px rgba(29, 33, 41, .06), 0 4px 14px rgba(29, 33, 41, .06);
+  --rp-shadow-lg: 0 24px 60px rgba(13, 15, 20, .28);
+  --rp-font: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --rp-mono: "IBM Plex Mono", ui-monospace, Consolas, monospace;
+
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: 248px minmax(0, 1fr);
+  background: var(--rp-bg);
+  color: var(--rp-text);
+  font-family: var(--rp-font);
+  font-size: 15px;
+  line-height: 1.5;
+}
+:root[data-theme="dark"] .rp-app {
+  color-scheme: dark;
+  --rp-bg: #0f1218;
+  --rp-surface: #181c24;
+  --rp-surface-2: #14171e;
+  --rp-line: #262b35;
+  --rp-line-strong: #343a46;
+  --rp-text: #eceef2;
+  --rp-text-2: #b2b8c2;
+  --rp-text-3: #7d8490;
+  --rp-side: #0b0d12;
+  --rp-side-2: #07080b;
+  --rp-amber: #f5a524;
+  --rp-amber-strong: #f5b44a;
+  --rp-amber-soft: rgba(245, 165, 36, .14);
+  --rp-blue: #6aa2ff;
+  --rp-blue-soft: rgba(106, 162, 255, .14);
+  --rp-green: #3ccf95;
+  --rp-green-soft: rgba(60, 207, 149, .13);
+  --rp-red: #f27474;
+  --rp-red-soft: rgba(242, 116, 116, .13);
+  --rp-shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 4px 14px rgba(0, 0, 0, .3);
+}
+.rp-app *, .rp-app *::before, .rp-app *::after { box-sizing: border-box; }
+.rp-app button, .rp-app input, .rp-app select { font: inherit; color: inherit; }
+.rp-app :focus-visible { outline: 3px solid var(--rp-amber); outline-offset: 2px; }
+
+/* ---------- Boční menu ---------- */
+.rp-side {
+  position: sticky; top: 0; height: 100vh; display: flex; flex-direction: column; gap: 6px; padding: 18px 14px;
+  background: linear-gradient(180deg, var(--rp-side), var(--rp-side-2)); color: var(--rp-side-text);
+}
+.rp-brand { display: flex; align-items: center; gap: 12px; padding: 4px 6px 18px; border-bottom: 1px solid rgba(255, 255, 255, .07); margin-bottom: 10px; }
+.rp-brand-mark {
+  width: 44px; height: 44px; flex-shrink: 0; border-radius: 50%; display: grid; place-items: center;
+  background: conic-gradient(from 30deg, #ffb238, #e8900c, #8a4d00, #ffb238); box-shadow: inset 0 0 0 7px var(--rp-side);
+}
+.rp-brand-mark::after { content: ""; width: 10px; height: 10px; border-radius: 50%; background: var(--rp-side); box-shadow: 0 0 0 2px #ffb238; }
+.rp-brand-name { color: #fff; font-weight: 700; font-size: 15.5px; line-height: 1.25; }
+.rp-brand-sub { font-size: 12px; color: #8d929c; }
+.rp-nav-link {
+  display: flex; align-items: center; gap: 12px; min-height: 48px; padding: 0 14px; border-radius: 10px;
+  color: var(--rp-side-text); text-decoration: none; font-weight: 600; font-size: 15px;
+}
+.rp-nav-link:hover { background: rgba(255, 255, 255, .06); color: #fff; }
+.rp-nav-link.active { background: rgba(232, 144, 12, .16); color: #fff; box-shadow: inset 3px 0 0 var(--rp-amber); }
+.rp-nav-icon { width: 22px; text-align: center; font-size: 17px; }
+.rp-nav-count { margin-left: auto; min-width: 24px; height: 24px; padding: 0 7px; border-radius: 12px; background: var(--rp-amber); color: #1b1f27; font-size: 12.5px; font-weight: 700; display: inline-grid; place-items: center; }
+.rp-side-foot { margin-top: auto; display: grid; gap: 10px; padding-top: 14px; border-top: 1px solid rgba(255, 255, 255, .07); }
+.rp-me { display: flex; align-items: center; gap: 10px; }
+.rp-me-avatar { width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; background: #2c313b; color: #fff; font-weight: 700; }
+.rp-me strong { display: block; color: #fff; font-size: 14px; }
+.rp-me span { font-size: 12px; color: #8d929c; }
+.rp-side-buttons { display: flex; gap: 8px; }
+.rp-side-btn {
+  flex: 1; min-height: 40px; border-radius: 9px; border: 1px solid rgba(255, 255, 255, .14); background: transparent;
+  color: var(--rp-side-text); font-weight: 600; cursor: pointer;
+}
+.rp-side-btn:hover { background: rgba(255, 255, 255, .07); color: #fff; }
+.rp-side-btn.theme-toggle { flex: 0 0 44px; width: auto; height: auto; }
+
+/* ---------- Obsah ---------- */
+.rp-main { min-width: 0; padding: 28px clamp(16px, 3vw, 40px) 70px; }
+.rp-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 20px; }
+.rp-head h1 { margin: 0; font-size: clamp(24px, 3vw, 30px); font-weight: 700; letter-spacing: -.02em; text-wrap: balance; }
+.rp-head p { margin: 4px 0 0; color: var(--rp-text-2); max-width: 62ch; }
+.rp-head-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+
+.rp-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 46px; padding: 0 18px;
+  border-radius: 10px; border: 1px solid transparent; font-weight: 700; font-size: 15px; cursor: pointer; text-decoration: none; white-space: nowrap;
+}
+.rp-btn:disabled { opacity: .55; cursor: not-allowed; }
+.rp-btn-lg { min-height: 54px; font-size: 16.5px; width: 100%; }
+.rp-btn-amber { background: var(--rp-amber); color: #1b1f27; }
+.rp-btn-amber:hover:not(:disabled) { background: #f39c1a; }
+.rp-btn-green { background: var(--rp-green); color: #fff; }
+.rp-btn-blue { background: var(--rp-blue); color: #fff; }
+.rp-btn-excel { background: var(--rp-excel); color: #fff; }
+.rp-btn-line { background: var(--rp-surface); border-color: var(--rp-line-strong); color: var(--rp-text); }
+.rp-btn-line:hover:not(:disabled) { border-color: var(--rp-text-3); }
+.rp-btn-danger { background: transparent; border-color: var(--rp-red); color: var(--rp-red); }
+.rp-btn-sm { min-height: 36px; padding: 0 12px; font-size: 13.5px; }
+:root[data-theme="dark"] .rp-btn-green, :root[data-theme="dark"] .rp-btn-blue { color: #0f1218; }
+
+.rp-search { position: relative; max-width: 460px; margin-bottom: 20px; }
+.rp-search input {
+  width: 100%; min-height: 50px; padding: 0 16px 0 44px; border-radius: 12px; border: 1px solid var(--rp-line-strong);
+  background: var(--rp-surface); font-size: 16px; color: var(--rp-text);
+}
+.rp-search::before { content: "⌕"; position: absolute; left: 16px; top: 50%; transform: translateY(-52%); font-size: 20px; color: var(--rp-text-3); }
+
+/* ---------- Nástěnka zakázek ---------- */
+.rp-board { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; align-items: start; }
+.rp-col { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.rp-col-head { display: flex; align-items: center; gap: 10px; padding: 0 4px 2px; }
+.rp-col-dot { width: 12px; height: 12px; border-radius: 50%; background: var(--c); box-shadow: 0 0 0 4px color-mix(in srgb, var(--c) 22%, transparent); }
+.rp-col-title { font-weight: 700; font-size: 16px; }
+.rp-col-count { margin-left: auto; font-family: var(--rp-mono); font-weight: 600; color: var(--rp-text-2); }
+.rp-col-wait { --c: var(--rp-amber); }
+.rp-col-work { --c: var(--rp-blue); }
+.rp-col-done { --c: var(--rp-green); }
+.rp-col-empty { padding: 22px 16px; text-align: center; color: var(--rp-text-3); border: 2px dashed var(--rp-line); border-radius: 14px; font-size: 14px; }
+
+.rp-job {
+  position: relative; display: grid; gap: 10px; padding: 16px; background: var(--rp-surface); border: 1px solid var(--rp-line);
+  border-radius: 14px; box-shadow: var(--rp-shadow); border-top: 4px solid var(--c, var(--rp-line-strong));
+}
+.rp-job-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+.rp-job-serial { font-family: var(--rp-mono); font-size: 22px; font-weight: 600; letter-spacing: .01em; color: var(--rp-text); text-decoration: none; }
+.rp-job-serial:hover { text-decoration: underline; text-decoration-color: var(--c); text-underline-offset: 4px; }
+.rp-job-days { font-size: 12.5px; color: var(--rp-text-3); white-space: nowrap; padding-top: 4px; }
+.rp-job-days.late { color: var(--rp-red); font-weight: 700; }
+.rp-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.rp-chip { padding: 3px 9px; border-radius: 7px; background: var(--rp-surface-2); border: 1px solid var(--rp-line); font-size: 13px; color: var(--rp-text-2); }
+.rp-chip b { color: var(--rp-text); font-weight: 600; }
+.rp-job-note { font-size: 13.5px; color: var(--rp-text-2); padding: 8px 10px; border-radius: 8px; background: var(--rp-surface-2); }
+.rp-job-actions { display: grid; gap: 8px; }
+.rp-link-btn { background: none; border: none; padding: 4px; color: var(--rp-text-2); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; font-size: 14px; justify-self: center; }
+.rp-link-btn:hover { color: var(--rp-red); }
+
+.rp-failed { margin-top: 26px; }
+.rp-failed h2 { font-size: 16px; margin: 0 0 10px; color: var(--rp-red); }
+.rp-failed-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+
+/* ---------- Okno (hotovo / nelze) ---------- */
+.rp-dialog-back { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; padding: 16px; background: rgba(10, 12, 16, .55); backdrop-filter: blur(3px); }
+.rp-dialog {
+  width: min(100%, 480px); background: var(--rp-surface); color: var(--rp-text); border-radius: 18px; box-shadow: var(--rp-shadow-lg);
+  border: 1px solid var(--rp-line); overflow: hidden; font-family: var(--rp-font);
+}
+.rp-dialog-head { padding: 20px 22px 6px; }
+.rp-dialog-head h2 { margin: 0; font-size: 21px; }
+.rp-dialog-head p { margin: 4px 0 0; color: var(--rp-text-2); }
+.rp-dialog-body { display: grid; gap: 8px; padding: 14px 22px 4px; }
+.rp-dialog-body label { font-weight: 600; font-size: 14px; color: var(--rp-text-2); }
+.rp-dialog-body input {
+  min-height: 52px; padding: 0 14px; border-radius: 11px; border: 1px solid var(--rp-line-strong); background: var(--rp-surface-2);
+  font-size: 17px; color: var(--rp-text);
+}
+.rp-money { position: relative; }
+.rp-money input { width: 100%; padding-right: 48px; font-family: var(--rp-mono); }
+.rp-money span { position: absolute; right: 16px; top: 50%; transform: translateY(-50%); color: var(--rp-text-3); font-weight: 600; }
+.rp-hint { font-size: 13px; color: var(--rp-text-3); margin: -2px 0 6px; }
+.rp-dialog-foot { display: flex; gap: 10px; padding: 18px 22px 22px; }
+.rp-dialog-foot .rp-btn { flex: 1; }
+.rp-error { padding: 10px 12px; border-radius: 10px; background: var(--rp-red-soft); color: var(--rp-red); font-weight: 600; font-size: 14px; }
+
+/* ---------- Karta kotouče ---------- */
+.rp-back { display: inline-flex; align-items: center; gap: 6px; margin-bottom: 14px; color: var(--rp-text-2); text-decoration: none; font-weight: 600; }
+.rp-back:hover { color: var(--rp-text); }
+.rp-hero {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 20px; align-items: start; padding: 24px; margin-bottom: 18px;
+  background: var(--rp-surface); border: 1px solid var(--rp-line); border-radius: 18px; box-shadow: var(--rp-shadow);
+}
+.rp-hero-serial { font-family: var(--rp-mono); font-size: clamp(30px, 5vw, 42px); font-weight: 600; line-height: 1.05; letter-spacing: -.01em; }
+.rp-hero-spec { margin-top: 10px; }
+.rp-hero-action { display: grid; gap: 8px; min-width: 260px; }
+.rp-status { display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 999px; font-weight: 700; font-size: 14px; background: var(--s-soft); color: var(--s); }
+.rp-status::before { content: ""; width: 9px; height: 9px; border-radius: 50%; background: currentColor; }
+.rp-s-ceka { --s: var(--rp-amber-strong); --s-soft: var(--rp-amber-soft); }
+.rp-s-prevzato { --s: var(--rp-blue); --s-soft: var(--rp-blue-soft); }
+.rp-s-hotovo { --s: var(--rp-green); --s-soft: var(--rp-green-soft); }
+.rp-s-nelze { --s: var(--rp-red); --s-soft: var(--rp-red-soft); }
+.rp-s-vraceno { --s: var(--rp-text-2); --s-soft: var(--rp-surface-2); }
+
+/* Průběh: Odesláno → Převzato → Hotovo → Vráceno do AGC */
+.rp-steps { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); margin: 0 0 18px; padding: 0; list-style: none; background: var(--rp-surface); border: 1px solid var(--rp-line); border-radius: 18px; overflow: hidden; }
+.rp-step { position: relative; padding: 16px 18px; border-right: 1px solid var(--rp-line); }
+.rp-step:last-child { border-right: none; }
+.rp-step-label { display: flex; align-items: center; gap: 8px; font-weight: 700; color: var(--rp-text-3); }
+.rp-step-label i { width: 24px; height: 24px; border-radius: 50%; display: inline-grid; place-items: center; font-style: normal; font-size: 13px; border: 2px solid var(--rp-line-strong); color: var(--rp-text-3); }
+.rp-step-time { margin-top: 4px; font-size: 13.5px; color: var(--rp-text-3); }
+.rp-step.done .rp-step-label { color: var(--rp-text); }
+.rp-step.done .rp-step-label i { background: var(--rp-green); border-color: var(--rp-green); color: #fff; }
+.rp-step.fail .rp-step-label i { background: var(--rp-red); border-color: var(--rp-red); color: #fff; }
+.rp-step.now { background: var(--rp-amber-soft); }
+.rp-step.now .rp-step-label { color: var(--rp-amber-strong); }
+.rp-step.now .rp-step-label i { border-color: var(--rp-amber); color: var(--rp-amber-strong); }
+
+.rp-facts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 18px; }
+.rp-fact { padding: 14px 16px; background: var(--rp-surface); border: 1px solid var(--rp-line); border-radius: 14px; }
+.rp-fact span { display: block; font-size: 13px; color: var(--rp-text-3); }
+.rp-fact b { font-size: 19px; font-weight: 700; font-variant-numeric: tabular-nums; }
+
+.rp-panel { background: var(--rp-surface); border: 1px solid var(--rp-line); border-radius: 18px; padding: 20px; margin-bottom: 18px; box-shadow: var(--rp-shadow); }
+.rp-panel > h2 { margin: 0 0 4px; font-size: 18px; }
+.rp-panel > p { margin: 0 0 14px; color: var(--rp-text-2); font-size: 14px; }
+.rp-table-wrap { overflow-x: auto; }
+.rp-table { width: 100%; border-collapse: collapse; font-size: 14.5px; }
+.rp-table th { text-align: left; padding: 10px 12px; font-size: 12px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--rp-text-3); border-bottom: 1px solid var(--rp-line); white-space: nowrap; }
+.rp-table td { padding: 12px; border-bottom: 1px solid var(--rp-line); vertical-align: middle; }
+.rp-table tbody tr:last-child td { border-bottom: none; }
+.rp-table tr.click { cursor: pointer; }
+.rp-table tr.click:hover td { background: var(--rp-surface-2); }
+.rp-table .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.rp-table .mono { font-family: var(--rp-mono); font-weight: 600; font-size: 15px; }
+.rp-muted { color: var(--rp-text-3); }
+.rp-empty { padding: 34px 16px; text-align: center; color: var(--rp-text-3); }
+
+/* ---------- Administrace firmy ---------- */
+.rp-admin-grid { display: grid; gap: 18px; }
+.rp-form-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; align-items: end; }
+.rp-field { display: grid; gap: 6px; }
+.rp-field label { font-size: 13.5px; font-weight: 600; color: var(--rp-text-2); }
+.rp-field input, .rp-field select {
+  min-height: 46px; padding: 0 12px; border-radius: 10px; border: 1px solid var(--rp-line-strong); background: var(--rp-surface-2); color: var(--rp-text); font-size: 15px;
+}
+.rp-role { display: inline-flex; padding: 3px 10px; border-radius: 999px; font-size: 12.5px; font-weight: 700; background: var(--rp-surface-2); color: var(--rp-text-2); border: 1px solid var(--rp-line); }
+.rp-role.admin { background: var(--rp-blue-soft); color: var(--rp-blue); border-color: transparent; }
+.rp-role.mega_admin { background: var(--rp-amber-soft); color: var(--rp-amber-strong); border-color: transparent; }
+.rp-online { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; color: var(--rp-text-3); }
+.rp-online::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+.rp-online.on { color: var(--rp-green); }
+.rp-inline-form { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 8px; }
+.rp-inline-form input { min-height: 38px; padding: 0 10px; border-radius: 8px; border: 1px solid var(--rp-line-strong); background: var(--rp-surface-2); color: var(--rp-text); }
+.rp-notice { padding: 12px 14px; border-radius: 12px; font-weight: 600; margin-bottom: 14px; }
+.rp-notice.ok { background: var(--rp-green-soft); color: var(--rp-green); }
+.rp-notice.err { background: var(--rp-red-soft); color: var(--rp-red); }
+
+/* ---------- Mobil: spodní lišta, jeden sloupec ---------- */
+.rp-mobile-top { display: none; }
+@media (max-width: 1100px) {
+  .rp-board { grid-template-columns: minmax(0, 1fr); }
+  .rp-facts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 860px) {
+  .rp-app { grid-template-columns: minmax(0, 1fr); padding-bottom: 76px; }
+  .rp-side { display: none; }
+  .rp-mobile-top {
+    display: flex; align-items: center; gap: 10px; padding: 12px 16px; position: sticky; top: 0; z-index: 20;
+    background: var(--rp-side); color: #fff;
+  }
+  .rp-mobile-top .rp-brand-mark { width: 34px; height: 34px; box-shadow: inset 0 0 0 5px var(--rp-side); }
+  .rp-mobile-top .rp-brand-name { font-size: 14.5px; }
+  .rp-mobile-top .rp-brand-sub { font-size: 11.5px; }
+  .rp-mobile-top .rp-side-btn { flex: 0 0 auto; padding: 0 12px; min-height: 38px; }
+  .rp-mobile-top > div:first-of-type { margin-right: auto; min-width: 0; }
+  .rp-tabbar {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 30; display: grid; grid-auto-flow: column; grid-auto-columns: 1fr;
+    background: var(--rp-side); padding: 6px 6px calc(6px + env(safe-area-inset-bottom, 0px)); border-top: 1px solid rgba(255, 255, 255, .08);
+  }
+  .rp-tabbar .rp-nav-link { flex-direction: column; justify-content: center; gap: 2px; min-height: 58px; padding: 4px; font-size: 12.5px; text-align: center; }
+  .rp-tabbar .rp-nav-link.active { box-shadow: inset 0 3px 0 var(--rp-amber); }
+  .rp-tabbar .rp-nav-count { position: absolute; margin: -36px 0 0 34px; min-width: 20px; height: 20px; font-size: 11px; }
+  .rp-tabbar .rp-nav-link { position: relative; }
+  .rp-main { padding: 18px 14px 40px; }
+  .rp-hero { grid-template-columns: minmax(0, 1fr); padding: 18px; }
+  .rp-hero-action { min-width: 0; }
+  .rp-steps { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .rp-step:nth-child(2) { border-right: none; }
+  .rp-step:nth-child(-n + 2) { border-bottom: 1px solid var(--rp-line); }
+  .rp-head-actions, .rp-head-actions .rp-btn { width: 100%; }
+}
+@media (min-width: 861px) { .rp-tabbar { display: none; } }
+
+/* Nástěnka: hustší karty, ať je při mnoha kotoučích vidět víc najednou */
+.rp-board .rp-job { padding: 14px; gap: 8px; }
+.rp-board .rp-job-serial { font-size: 20px; }
+.rp-board .rp-btn-lg { min-height: 48px; font-size: 15.5px; }
+.rp-board .rp-job-actions { gap: 4px; }

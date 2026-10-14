@@ -1,4 +1,4 @@
-"""Populate the MySQL database with realistic sample data for AGC Automotive Czech.
+"""Populate the MariaDB database with realistic sample data for AGC Automotive Czech.
 
 Run with: python -m app.seed
 """
@@ -7,7 +7,7 @@ import random
 from datetime import date, timedelta
 from urllib.parse import quote_plus
 import pymysql
-from sqlalchemy import text
+from sqlalchemy import text, inspect as sa_inspect
 
 from .database import Base, engine, SessionLocal
 from . import models, crud, schemas
@@ -50,7 +50,11 @@ def run(reset: bool = True, check_db: bool = False):
     if reset:
         with engine.connect() as connection:
             connection.execute(text("SET FOREIGN_KEY_CHECKS = 0;"))
-            for tbl in reversed(Base.metadata.sorted_tables):
+            # Reset only wheel reference data; keep accounts and their login audit history.
+            preserved_tables = {"users", "user_sessions", "user_deletion_audits", "wheel_creation_audits"}
+            if sa_inspect(connection).has_table("wheel_creation_audits"):
+                connection.execute(text("UPDATE wheel_creation_audits SET wheel_id = NULL"))
+            for tbl in reversed([table for table in Base.metadata.sorted_tables if table.name not in preserved_tables]):
                 connection.execute(text(f"DROP TABLE IF EXISTS `{tbl.name}`;"))
             connection.execute(text("SET FOREIGN_KEY_CHECKS = 1;"))
             connection.commit()
