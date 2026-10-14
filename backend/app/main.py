@@ -1,15 +1,17 @@
 import os
-import re
 from datetime import datetime, timedelta
 
 from fastapi import FastAPI, Depends, HTTPException, Query, Request, Response
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from fastapi.security import HTTPAuthorizationCredentials
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from . import models, schemas, crud
 from .database import Base, engine, get_db, SessionLocal
+from .accounts import make_accounts_router, validate_new_account
+from .deps import bearer_scheme, get_current_user, get_session_user, require_admin, require_repair_admin
+from .repair import router as repair_router
 from .security import hash_password, hash_token, new_session_token, verify_password
 
 app = FastAPI(title="Management kotoučů API", version="1.0.0")
@@ -21,36 +23,15 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-bearer_scheme = HTTPBearer(auto_error=False)
+# Část Reprofilace (firma, která kotouče přebrušuje) — vlastní endpointy /api/repair/...
+app.include_router(repair_router)
+
+# Správa účtů: stejná pro AGC (/api/admin) i pro každou firmu reprofilace (/api/repair/admin),
+# ale úplně oddělená — admin vidí a spravuje jen účty své firmy.
+app.include_router(make_accounts_router("/api/admin", require_admin, "administrace AGC"))
+app.include_router(make_accounts_router("/api/repair/admin", require_repair_admin, "administrace firmy reprofilace"))
+
 SESSION_HOURS = 12
-ACTIVE_WINDOW_MINUTES = 2
-
-
-def get_current_user(
-    credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
-    db: Session = Depends(get_db),
-) -> models.User:
-    if not credentials or credentials.scheme.lower() != "bearer":
-        raise HTTPException(401, "Přihlášení je vyžadováno")
-    now = datetime.utcnow()
-    session = db.scalar(
-        select(models.UserSession).where(
-            models.UserSession.token_hash == hash_token(credentials.credentials),
-            models.UserSession.ended_at.is_(None),
-            models.UserSession.expires_at > now,
-        )
-    )
-    if not session or not session.user or not session.user.is_active:
-        raise HTTPException(401, "Přihlášení vypršelo nebo bylo ukončeno")
-    session.last_seen_at = now
-    db.commit()
-    return session.user
-
-
-def require_admin(user: models.User = Depends(get_current_user)) -> models.User:
-    if user.role not in {models.UserRole.ADMIN, models.UserRole.MEGA_ADMIN}:
-        raise HTTPException(403, "Tato funkce je dostupná pouze administrátorům")
-    return user
 
 
 def initialize_admin() -> None:
@@ -62,7 +43,7 @@ def initialize_admin() -> None:
         # one, retain the oldest account as the sole mega admin.
         with SessionLocal() as db:
             mega_admins = db.scalars(select(models.User).where(
-                models.User.role == models.UserRole.MEGA_ADMIN
+                models.User.role == models.UserRole.MEGA_ADMIN, models.User.location_id.is_(None)
             ).order_by(models.User.id)).all()
             for extra_admin in mega_admins[1:]:
                 extra_admin.role = models.UserRole.ADMIN
@@ -77,13 +58,14 @@ def initialize_admin() -> None:
             existing.role = models.UserRole.MEGA_ADMIN
             db.execute(
                 models.User.__table__.update()
-                .where(models.User.id != existing.id, models.User.role == models.UserRole.MEGA_ADMIN)
+                .where(models.User.id != existing.id, models.User.role == models.UserRole.MEGA_ADMIN,
+                       models.User.location_id.is_(None))
                 .values(role=models.UserRole.ADMIN)
             )
             db.commit()
             return
         db.execute(models.User.__table__.update().where(
-            models.User.role == models.UserRole.MEGA_ADMIN
+            models.User.role == models.UserRole.MEGA_ADMIN, models.User.location_id.is_(None)
         ).values(role=models.UserRole.ADMIN))
         db.add(models.User(username=username, password_hash=hash_password(password), role=models.UserRole.MEGA_ADMIN))
         db.commit()
@@ -99,6 +81,12 @@ def login(data: schemas.LoginRequest, request: Request, db: Session = Depends(ge
     user = db.scalar(select(models.User).where(models.User.username == username))
     if not user or not user.is_active or not verify_password(data.password, user.password_hash):
         raise HTTPException(401, "Neplatné přihlašovací údaje")
+    # Každý účet se přihlašuje ve své sekci (záložka AGC / Reprofilace na přihlašovací stránce)
+    is_repair = user.location_id is not None
+    if is_repair and data.portal != "reprofilace":
+        raise HTTPException(403, "Tento účet patří do sekce Reprofilace — přepněte se nahoře na „Reprofilace“")
+    if not is_repair and data.portal == "reprofilace":
+        raise HTTPException(403, "Účty AGC se přihlašují v sekci AGC — přepněte se nahoře na „AGC“")
 
     now = datetime.utcnow()
     token = new_session_token()
@@ -112,6 +100,7 @@ def login(data: schemas.LoginRequest, request: Request, db: Session = Depends(ge
         created_at=now,
         last_seen_at=now,
         expires_at=now + timedelta(hours=SESSION_HOURS),
+        location_id=user.location_id,
     ))
     db.commit()
     db.refresh(user)
@@ -119,7 +108,7 @@ def login(data: schemas.LoginRequest, request: Request, db: Session = Depends(ge
 
 
 @app.get("/api/auth/me", response_model=schemas.UserOut)
-def who_am_i(user: models.User = Depends(get_current_user)):
+def who_am_i(user: models.User = Depends(get_session_user)):
     return user
 
 
@@ -139,136 +128,45 @@ def logout(
     return Response(status_code=204)
 
 
-@app.get("/api/admin/users", response_model=list[schemas.UserOut])
-def list_users(db: Session = Depends(get_db), _admin: models.User = Depends(require_admin)):
-    return db.scalars(select(models.User).order_by(models.User.username)).all()
+# ---------- Firmy reprofilace: jen založení prvního účtu firmy (smí jen megaAdmin AGC) ----------
 
-
-@app.post("/api/admin/users", response_model=schemas.UserOut, status_code=201)
-def create_user(data: schemas.UserCreate, db: Session = Depends(get_db), _admin: models.User = Depends(require_admin)):
-    username = data.username.strip().lower()
-    if not re.fullmatch(r"[a-z0-9][a-z0-9_.-]{2,31}", username):
-        raise HTTPException(400, "Uživatelské jméno musí mít 3–32 znaků (písmena bez diakritiky, čísla, . _ -)")
-    if len(data.password) < 10:
-        raise HTTPException(400, "Heslo musí mít alespoň 10 znaků")
-    if data.role == models.UserRole.MEGA_ADMIN:
-        raise HTTPException(403, "MegaAdmin je jediný a nelze ho vytvořit přes administraci")
-    if db.scalar(select(models.User.id).where(models.User.username == username)):
-        raise HTTPException(409, "Uživatel s tímto jménem už existuje")
-    user = models.User(username=username, password_hash=hash_password(data.password), role=data.role)
-    db.add(user)
-    db.commit()
-    db.refresh(user)
+def require_mega_admin(user: models.User = Depends(require_admin)) -> models.User:
+    if user.role != models.UserRole.MEGA_ADMIN:
+        raise HTTPException(403, "Účty firem reprofilace zakládá pouze megaAdmin AGC")
     return user
 
 
-@app.put("/api/admin/users/{user_id}/password", status_code=204)
-def reset_user_password(
-    user_id: int,
-    data: schemas.UserPasswordReset,
-    db: Session = Depends(get_db),
-    admin: models.User = Depends(require_admin),
-):
-    user = db.get(models.User, user_id)
-    if not user:
-        raise HTTPException(404, "Uživatel nenalezen")
-    if user.role == models.UserRole.MEGA_ADMIN:
-        raise HTTPException(403, "Heslo MegaAdmina nelze měnit z administrace")
-    if user.role == models.UserRole.ADMIN and admin.role != models.UserRole.MEGA_ADMIN:
-        raise HTTPException(403, "Hesla administrátorů může měnit pouze MegaAdmin")
-    if len(data.password) < 10:
-        raise HTTPException(400, "Heslo musí mít alespoň 10 znaků")
-    user.password_hash = hash_password(data.password)
-    for session in user.sessions:
-        if session.ended_at is None:
-            session.ended_at = datetime.utcnow()
-    db.commit()
-    return Response(status_code=204)
-
-
-@app.put("/api/admin/users/{user_id}/username", response_model=schemas.UserOut)
-def rename_user(
-    user_id: int,
-    data: schemas.UserRename,
-    db: Session = Depends(get_db),
-    admin: models.User = Depends(require_admin),
-):
-    user = db.get(models.User, user_id)
-    if not user:
-        raise HTTPException(404, "Uživatel nenalezen")
-    if user.role == models.UserRole.MEGA_ADMIN:
-        raise HTTPException(403, "Uživatelské jméno MegaAdmina nelze měnit z administrace")
-    if user.role == models.UserRole.ADMIN and admin.role != models.UserRole.MEGA_ADMIN:
-        raise HTTPException(403, "Uživatelská jména administrátorů může měnit pouze MegaAdmin")
-    username = data.username.strip().lower()
-    if not re.fullmatch(r"[a-z0-9][a-z0-9_.-]{2,31}", username):
-        raise HTTPException(400, "Uživatelské jméno musí mít 3–32 znaků (písmena bez diakritiky, čísla, . _ -)")
-    existing = db.scalar(select(models.User.id).where(
-        models.User.username == username,
-        models.User.id != user.id,
-    ))
-    if existing:
-        raise HTTPException(409, "Uživatel s tímto jménem už existuje")
-    user.username = username
-    for session in user.sessions:
-        session.username = username
-    db.commit()
-    db.refresh(user)
-    return user
-
-
-@app.delete("/api/admin/users/{user_id}", status_code=204)
-def delete_user(user_id: int, db: Session = Depends(get_db), admin: models.User = Depends(require_admin)):
-    user = db.get(models.User, user_id)
-    if not user:
-        raise HTTPException(404, "Uživatel nenalezen")
-    if user.id == admin.id:
-        raise HTTPException(400, "Svůj vlastní administrátorský účet nelze odstranit")
-    if user.role == models.UserRole.MEGA_ADMIN:
-        raise HTTPException(403, "Účet megaAdmina nelze odstranit z administrace")
-    if user.role == models.UserRole.ADMIN and admin.role != models.UserRole.MEGA_ADMIN:
-        raise HTTPException(403, "Administrátory může mazat pouze megaAdmin")
-    for user_session in user.sessions:
-        if user_session.ended_at is None:
-            user_session.ended_at = datetime.utcnow()
-    db.add(models.UserDeletionAudit(
-        actor_user_id=admin.id,
-        actor_username=admin.username,
-        deleted_user_id=user.id,
-        deleted_username=user.username,
-        deleted_role=user.role,
-        deleted_at=datetime.utcnow(),
-    ))
-    db.delete(user)
-    db.commit()
-    return Response(status_code=204)
-
-
-@app.get("/api/admin/sessions", response_model=list[schemas.UserSessionOut])
-def list_sessions(db: Session = Depends(get_db), _admin: models.User = Depends(require_admin)):
-    now = datetime.utcnow()
-    active_after = now - timedelta(minutes=ACTIVE_WINDOW_MINUTES)
-    rows = db.scalars(
-        select(models.UserSession)
-        .order_by(models.UserSession.created_at.desc())
-        .limit(250)
+@app.get("/api/admin/repair-companies", response_model=list[schemas.RepairCompanyOut])
+def list_repair_companies(db: Session = Depends(get_db), _admin: models.User = Depends(require_mega_admin)):
+    """Místa reprofilace (firmy) a jestli už mají účty. Účty samotné AGC nevidí — spravuje si je firma."""
+    companies = db.scalars(
+        select(models.Location).where(models.Location.type == models.LocationType.REPROFILACE).order_by(models.Location.name)
     ).all()
-    return [{
-        "id": session.id,
-        "username": session.username,
-        "ip_address": session.ip_address,
-        "user_agent": session.user_agent,
-        "created_at": session.created_at,
-        "last_seen_at": session.last_seen_at,
-        "expires_at": session.expires_at,
-        "ended_at": session.ended_at,
-        "is_active": session.ended_at is None and session.expires_at > now and session.last_seen_at >= active_after,
-    } for session in rows]
+    out = []
+    for c in companies:
+        count = len(db.scalars(select(models.User.id).where(models.User.location_id == c.id)).all())
+        out.append(schemas.RepairCompanyOut(id=c.id, name=c.name, accounts=count))
+    return out
 
 
-@app.get("/api/admin/audits/user-deletions", response_model=list[schemas.UserDeletionAuditOut])
-def list_user_deletion_audits(db: Session = Depends(get_db), _admin: models.User = Depends(require_admin)):
-    return db.scalars(select(models.UserDeletionAudit).order_by(models.UserDeletionAudit.deleted_at.desc())).all()
+@app.post("/api/admin/repair-companies/{location_id}/first-admin", response_model=schemas.RepairCompanyOut, status_code=201)
+def create_company_first_admin(
+    location_id: int,
+    data: schemas.CompanyFirstAdmin,
+    db: Session = Depends(get_db),
+    _admin: models.User = Depends(require_mega_admin),
+):
+    """Založí firmě jejího megaAdmina — jen jednou, když firma ještě nemá žádný účet. Dál si účty spravuje firma."""
+    company = db.get(models.Location, location_id)
+    if not company or company.type != models.LocationType.REPROFILACE:
+        raise HTTPException(404, "Firma reprofilace nenalezena")
+    if db.scalar(select(models.User.id).where(models.User.location_id == company.id)):
+        raise HTTPException(409, "Firma už má účty — další si zakládá sama ve své administraci")
+    username = validate_new_account(db, data.username, data.password)
+    db.add(models.User(username=username, password_hash=hash_password(data.password),
+                       role=models.UserRole.MEGA_ADMIN, location_id=company.id))
+    db.commit()
+    return schemas.RepairCompanyOut(id=company.id, name=company.name, accounts=1)
 
 
 @app.get("/api/admin/audits/wheel-creations", response_model=list[schemas.WheelCreationAuditOut])
@@ -405,6 +303,8 @@ def get_wheel(wheel_id: int, db: Session = Depends(get_db), _user: models.User =
     wheel = _get_wheel_or_404(db, wheel_id)
     out = schemas.WheelDetailOut.model_validate(wheel)
     out.total_meters_ground = crud.wheel_total_meters(db, wheel.id)
+    summary = crud.to_wheel_out(db, wheel)
+    out.reprofiling_count, out.reprofiling_state = summary.reprofiling_count, summary.reprofiling_state
     out.cycles = [
         schemas.WheelCycleOut.model_validate(cycle).model_copy(update={
             "meters_ground": sum(record.meters_ground for record in cycle.usage_records),
@@ -479,6 +379,9 @@ def patch_wheel(wheel_id: int, data: schemas.WheelUpdate, db: Session = Depends(
             returned_by_user_id=user.id,
             returned_by_username=user.username,
         ))
+    # Cesta na reprofilaci: odeslání, firma, převzetí zpět (historie reprofilací kotouče)
+    new_location = db.get(models.Location, data.location_id) if data.location_id else None
+    crud.track_reprofiling(db, wheel, wheel.status, data.status, new_location, user)
     wheel = crud.update_wheel(db, wheel, data)
     return crud.to_wheel_out(db, wheel)
 

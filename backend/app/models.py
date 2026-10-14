@@ -45,6 +45,7 @@ class UserRole(str, enum.Enum):
     USER = "user"
     ADMIN = "admin"
     MEGA_ADMIN = "mega_admin"
+    REPROFILACE = "reprofilace"        # starší označení účtu firmy (už se nepoužívá, firma má vlastní role)
 
 
 class User(Base):
@@ -60,6 +61,10 @@ class User(Base):
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     last_login_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    # Ke které firmě účet patří: NULL = AGC, jinak firma reprofilace (místo typu „reprofilace“).
+    # Každá firma má vlastní megaAdmina, adminy a uživatele — úplně odděleně od AGC.
+    location_id: Mapped[int | None] = mapped_column(ForeignKey("locations.id", ondelete="SET NULL"), nullable=True)
+    location: Mapped["Location | None"] = relationship()
     sessions: Mapped[list["UserSession"]] = relationship(back_populates="user")
 
 
@@ -76,6 +81,7 @@ class UserSession(Base):
     last_seen_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     expires_at: Mapped[datetime] = mapped_column(DateTime)
     ended_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    location_id: Mapped[int | None] = mapped_column(Integer, nullable=True, index=True)  # firma účtu (NULL = AGC)
 
     user: Mapped["User | None"] = relationship(back_populates="sessions")
 
@@ -92,6 +98,7 @@ class UserDeletionAudit(Base):
         Enum(UserRole, values_callable=lambda x: [e.value for e in x], native_enum=False, length=20)
     )
     deleted_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    location_id: Mapped[int | None] = mapped_column(Integer, nullable=True, index=True)  # firma (NULL = AGC)
 
 
 class WheelCreationAudit(Base):
@@ -184,6 +191,9 @@ class Wheel(Base):
     cycles: Mapped[list["WheelCycle"]] = relationship(
         back_populates="wheel", cascade="all, delete-orphan", order_by="WheelCycle.taken_at.desc()"
     )
+    reprofilings: Mapped[list["WheelReprofiling"]] = relationship(
+        back_populates="wheel", cascade="all, delete-orphan", order_by="WheelReprofiling.sent_at.desc()"
+    )
 
 
 class WheelReturn(Base):
@@ -222,6 +232,35 @@ class WheelCycle(Base):
 
     wheel: Mapped["Wheel"] = relationship(back_populates="cycles")
     usage_records: Mapped[list["UsageRecord"]] = relationship(back_populates="cycle")
+
+
+class WheelReprofiling(Base):
+    """Jedna cesta kotouče na reprofilaci: odeslání z AGC → převzetí firmou → hotovo / nelze → návrat do AGC."""
+
+    __tablename__ = "wheel_reprofilings"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    wheel_id: Mapped[int] = mapped_column(ForeignKey("wheels.id", ondelete="CASCADE"), index=True)
+    location_id: Mapped[int | None] = mapped_column(ForeignKey("locations.id", ondelete="SET NULL"), nullable=True, index=True)
+    location_name: Mapped[str | None] = mapped_column(String(100), nullable=True)  # firma / místo reprofilace
+
+    sent_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    sent_by_username: Mapped[str] = mapped_column(String(80))
+    meters_before: Mapped[float] = mapped_column(Float, default=0.0)  # nabroušeno do odeslání
+
+    accepted_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)   # firma kotouč převzala
+    accepted_by_username: Mapped[str | None] = mapped_column(String(80), nullable=True)
+
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    finished_by_username: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    result: Mapped[str | None] = mapped_column(String(20), nullable=True)  # hotovo / nelze
+    note: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    cost: Mapped[float | None] = mapped_column(Float, nullable=True)       # cena dle firmy (nepovinná)
+
+    returned_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)  # AGC kotouč převzalo zpět
+    returned_by_username: Mapped[str | None] = mapped_column(String(80), nullable=True)
+
+    wheel: Mapped["Wheel"] = relationship(back_populates="reprofilings")
 
 
 class UsageRecord(Base):

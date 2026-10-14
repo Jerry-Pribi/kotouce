@@ -8,11 +8,14 @@ import { WheelDetailPage } from "./pages/WheelDetailPage";
 import { Locations } from "./pages/Locations";
 import { Login } from "./pages/Login";
 import { AdminPanel } from "./pages/AdminPanel";
+import { RepairApp } from "./repair/RepairApp";
 
 function Workspace() {
   const { user, loading } = useAuth();
   if (loading) return <div className="auth-loading">Ověřuji přihlášení…</div>;
   if (!user) return <Login />;
+  // Účty firem reprofilace mají vlastní část aplikace (i vlastní administraci)
+  if (user.location) return <RepairApp />;
 
   return (
     <div className="app-shell">
@@ -25,7 +28,7 @@ function Workspace() {
             <Route path="/kotouce" element={<Wheels />} />
             <Route path="/kotouce/:id" element={<WheelDetailPage />} />
             <Route path="/lokace" element={<Locations />} />
-            <Route path="/admin" element={user.role !== "user" ? <AdminPanel /> : <Navigate to="/" replace />} />
+            <Route path="/admin" element={user.role === "admin" || user.role === "mega_admin" ? <AdminPanel /> : <Navigate to="/" replace />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </main>

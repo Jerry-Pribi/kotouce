@@ -4,6 +4,7 @@ import { api } from "../api";
 import type { AdminSession, AdminUser, UserDeletionAudit, WheelCreationAudit } from "../api";
 import { useAuth } from "../components/AuthContext";
 import { PasswordField } from "../components/PasswordField";
+import { RepairCompaniesSection } from "../components/RepairCompaniesSection";
 
 function formatDate(value: string | null) {
   if (!value) return "Nikdy";
@@ -132,6 +133,8 @@ export function AdminPanel() {
           <button className="btn btn-primary" type="submit">＋ Vytvořit účet</button>
         </form>
       </section>
+
+      {currentUser?.role === "mega_admin" && <RepairCompaniesSection />}
 
       <section className="card admin-section">
         <div className="card-header"><div><div className="card-title">Uživatelské účty <span className="count-chip">{users.length}</span></div><div className="card-subtitle">Kliknutím na jméno lze upravit účet podle role. Změna hesla ukončí aktivní přihlášení daného účtu.</div></div></div>

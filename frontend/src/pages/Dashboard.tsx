@@ -147,7 +147,7 @@ export function Dashboard() {
               <tr>
                 <th rowSpan={2} className="mfr-col" style={{ minWidth: 160 }}>Výrobce / Dodavatel</th>
                 {diameters.map((d) => (
-                  <th key={d} colSpan={profilesByDiameter[d]?.length ?? 1} style={{ borderBottom: "2px solid #cbd5e1" }}>
+                  <th key={d} colSpan={profilesByDiameter[d]?.length ?? 1} style={{ borderBottom: "2px solid var(--border-medium)" }}>
                     Průměr Ø {d} mm
                   </th>
                 ))}

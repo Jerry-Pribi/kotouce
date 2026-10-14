@@ -303,7 +303,7 @@ export function AddWheelModal({ locations, onClose, onCreated, initialDestinatio
             </div>
 
             {error && (
-              <div style={{ marginTop: 12, padding: "8px 12px", background: "#fef2f2", color: "#b91c1c", borderRadius: 4, fontSize: "12.5px" }}>
+              <div style={{ marginTop: 12, padding: "8px 12px", background: "var(--st-vyrazen-bg)", color: "var(--st-vyrazen-color)", borderRadius: 4, fontSize: "12.5px" }}>
                 {error}
               </div>
             )}

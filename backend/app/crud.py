@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
@@ -112,7 +114,65 @@ def to_wheel_out(db: Session, wheel: models.Wheel) -> schemas.WheelOut:
         out.current_taken_by_username = active_cycle.taken_by_username
         out.current_line_name = active_cycle.used_on_location_name
         out.current_taken_at = active_cycle.taken_at
+    out.reprofiling_count = len(wheel.reprofilings)
+    open_r = open_reprofiling(wheel)
+    if wheel.status == models.WheelStatus.NA_REPROFILACI and open_r:
+        out.reprofiling_state = reprofiling_state(open_r)
     return out
+
+
+# ---------- Reprofilace ----------
+
+def open_reprofiling(wheel: models.Wheel) -> models.WheelReprofiling | None:
+    """Rozpracovaná reprofilace — kotouč odeslaný a AGC ho ještě nepřevzalo zpět."""
+    return next((r for r in wheel.reprofilings if r.returned_at is None), None)
+
+
+def reprofiling_state(r: models.WheelReprofiling) -> schemas.ReprofilingState:
+    if r.result == "hotovo":
+        return "hotovo"
+    if r.result == "nelze":
+        return "nelze"
+    return "prevzato" if r.accepted_at else "ceka"
+
+
+def track_reprofiling(
+    db: Session,
+    wheel: models.Wheel,
+    old_status: models.WheelStatus,
+    new_status: models.WheelStatus | None,
+    location: models.Location | None,
+    user: models.User,
+) -> None:
+    """Zapíše cestu kotouče na reprofilaci podle změny stavu na kartě kotouče (volá se před uložením změny).
+
+    - stav → Na reprofilaci: nový záznam (odeslání),
+    - změna místa reprofilace u kotouče na reprofilaci: záznam dostane firmu,
+    - stav z Na reprofilaci jinam: AGC kotouč převzalo zpět (nebo vyřadilo).
+    """
+    now = datetime.utcnow()
+    current = open_reprofiling(wheel)
+    reprof_location = location if location and location.type == models.LocationType.REPROFILACE else None
+    status_after = new_status or old_status
+
+    if old_status != models.WheelStatus.NA_REPROFILACI and status_after == models.WheelStatus.NA_REPROFILACI:
+        if current:  # starý nedokončený záznam uzavřít, ať nevisí
+            current.returned_at, current.returned_by_username = now, user.username
+        if reprof_location is None and wheel.location and wheel.location.type == models.LocationType.REPROFILACE:
+            reprof_location = wheel.location
+        db.add(models.WheelReprofiling(
+            wheel_id=wheel.id,
+            location_id=reprof_location.id if reprof_location else None,
+            location_name=reprof_location.name if reprof_location else None,
+            sent_at=now,
+            sent_by_username=user.username,
+            meters_before=wheel_total_meters(db, wheel.id),
+        ))
+    elif old_status == models.WheelStatus.NA_REPROFILACI and status_after == models.WheelStatus.NA_REPROFILACI:
+        if current and reprof_location and current.location_id != reprof_location.id:
+            current.location_id, current.location_name = reprof_location.id, reprof_location.name
+    elif old_status == models.WheelStatus.NA_REPROFILACI and current:
+        current.returned_at, current.returned_by_username = now, user.username
 
 
 def dashboard_summary(db: Session) -> schemas.DashboardSummary:

@@ -11,6 +11,15 @@
       rel="stylesheet"
     />
     <title>Management kotoučů · AGC Automotive Czech</title>
+    <script>
+      // Světlý / tmavý režim ještě před vykreslením (bez probliknutí): uložená volba, jinak nastavení systému
+      (function () {
+        var t = null;
+        try { t = localStorage.getItem("kotouc_theme"); } catch (e) {}
+        if (t !== "light" && t !== "dark") t = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+        document.documentElement.dataset.theme = t;
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

@@ -228,7 +228,7 @@ export function Wheels() {
 
       {/* DATOVÁ TABULKA */}
       <div className="data-table-container">
-        <div style={{ padding: "12px 16px", background: "#f8fafc", borderBottom: "1px solid var(--border-light)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div style={{ padding: "12px 16px", background: "var(--t-bg-f8fafc, #f8fafc)", borderBottom: "1px solid var(--border-light)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <span style={{ fontSize: "12.5px", color: "var(--text-muted)", fontWeight: 600 }}>
             {loading ? "Vyhledávám…" : `Zobrazeno ${wheels.length} kotoučů`}
           </span>

@@ -1,7 +1,12 @@
 from datetime import date, datetime
-from pydantic import BaseModel, ConfigDict
+from typing import Literal
+
+from pydantic import BaseModel, ConfigDict, Field
 
 from .models import WheelStatus, LocationType, UserRole
+
+# Průběh reprofilace: ceka = odesláno, firma ještě nepotvrdila · prevzato · hotovo · nelze
+ReprofilingState = Literal["ceka", "prevzato", "hotovo", "nelze"]
 
 
 class ManufacturerCreate(BaseModel):
@@ -90,7 +95,55 @@ class WheelOut(BaseModel):
     current_taken_by_username: str | None = None
     current_line_name: str | None = None
     current_taken_at: datetime | None = None
+    reprofiling_count: int = 0                 # kolikrát byl kotouč na reprofilaci
+    reprofiling_state: ReprofilingState | None = None  # jen když je na reprofilaci
     model_config = ConfigDict(from_attributes=True)
+
+
+class WheelReprofilingOut(BaseModel):
+    id: int
+    wheel_id: int
+    location_id: int | None
+    location_name: str | None
+    sent_at: datetime
+    sent_by_username: str
+    meters_before: float
+    accepted_at: datetime | None
+    accepted_by_username: str | None
+    finished_at: datetime | None
+    finished_by_username: str | None
+    result: str | None
+    note: str | None
+    cost: float | None
+    returned_at: datetime | None
+    returned_by_username: str | None
+    model_config = ConfigDict(from_attributes=True)
+
+
+class RepairDone(BaseModel):
+    """Firma hlásí hotovou reprofilaci (cena je nepovinná — často ji určí až faktura)."""
+    note: str | None = Field(None, max_length=500)
+    cost: float | None = Field(None, ge=0)
+
+
+class RepairFailed(BaseModel):
+    reason: str = Field(min_length=2, max_length=500)
+
+
+class RepairWheelOut(BaseModel):
+    """Kotouč, jak ho vidí firma reprofilace (bez interních údajů AGC)."""
+    id: int
+    serial_number: str
+    manufacturer: str
+    diameter: int
+    profile: str
+    status: WheelStatus
+    at_us: bool                       # kotouč je teď u této firmy
+    state: ReprofilingState | None    # průběh aktuální reprofilace
+    sent_at: datetime | None
+    total_meters_ground: float
+    reprofilings_here: int            # kolikrát už byl u této firmy
+    reprofilings: list[WheelReprofilingOut] = []
 
 
 class WheelReturnOut(BaseModel):
@@ -126,6 +179,7 @@ class WheelDetailOut(WheelOut):
     usage_records: list[UsageRecordOut] = []
     return_records: list[WheelReturnOut] = []
     cycles: list[WheelCycleOut] = []
+    reprofilings: list[WheelReprofilingOut] = []
 
 
 class DashboardCell(BaseModel):
@@ -145,6 +199,8 @@ class DashboardSummary(BaseModel):
 class LoginRequest(BaseModel):
     username: str
     password: str
+    # Sekce na přihlašovací stránce: AGC, nebo Reprofilace (firma, která kotouče přebrušuje)
+    portal: Literal["agc", "reprofilace"] = "agc"
 
 
 class UserCreate(BaseModel):
@@ -168,6 +224,7 @@ class UserOut(BaseModel):
     is_active: bool
     created_at: datetime
     last_login_at: datetime | None
+    location: LocationOut | None = None  # místo reprofilace (jen účet reprofilace)
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -210,3 +267,15 @@ class WheelCreationAuditOut(BaseModel):
     created_by_username: str
     created_at: datetime
     model_config = ConfigDict(from_attributes=True)
+
+
+class RepairCompanyOut(BaseModel):
+    """Firma reprofilace z pohledu AGC: jen jestli má účty (účty samotné spravuje firma)."""
+    id: int
+    name: str
+    accounts: int
+
+
+class CompanyFirstAdmin(BaseModel):
+    username: str
+    password: str

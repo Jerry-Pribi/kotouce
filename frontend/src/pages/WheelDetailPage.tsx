@@ -4,6 +4,7 @@ import { api } from "../api";
 import type { WheelDetail, WheelStatus, Location } from "../types";
 import { STATUS_LABELS } from "../types";
 import { StatusBadge } from "../components/StatusBadge";
+import { ReprofilingHistory } from "../components/ReprofilingHistory";
 
 const formatMeters = (value: number) => value.toLocaleString("cs-CZ", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 
@@ -360,7 +361,7 @@ export function WheelDetailPage() {
             {actionError && !returnPanelOpen && <div className="wheel-action-error" role="alert">{actionError}</div>}
 
             {wheel.note && (
-              <div style={{ background: "#fff", padding: "10px", borderRadius: 4, border: "1px solid var(--border-light)", fontSize: "12.5px" }}>
+              <div style={{ background: "var(--bg-card)", padding: "10px", borderRadius: 4, border: "1px solid var(--border-light)", fontSize: "12.5px" }}>
                 <span style={{ color: "var(--text-muted)", fontWeight: 600 }}>Poznámka: </span>
                 {wheel.note}
               </div>
@@ -416,6 +417,9 @@ export function WheelDetailPage() {
           </div>
         </div>
       </div>
+
+      {/* REPROFILACE: hlášení firmy a historie */}
+      <ReprofilingHistory wheel={wheel} />
 
       {(wheel.cycles.length > 0 || wheel.return_records.length > 0) && <div className="card wheel-return-history">
         <div className="card-header"><div><div className="card-title">Historie předání kotouče</div><div className="card-subtitle">Odkud kotouč odešel, kdo a kdy ho převzal, na které lince pracoval a do kterého skladu se vrátil.</div></div></div>
@@ -496,7 +500,7 @@ export function WheelDetailPage() {
 
       {/* HISTORIE BROUŠENÍ (PROVOZNÍ DENÍK) */}
       <div className="card grinding-diary" style={{ padding: 0 }}>
-        <div style={{ padding: "14px 20px", background: "#f8fafc", borderBottom: "1px solid var(--border-light)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div style={{ padding: "14px 20px", background: "var(--t-bg-f8fafc, #f8fafc)", borderBottom: "1px solid var(--border-light)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div style={{ fontWeight: 700, fontSize: "14px" }}>Provozní deník broušení</div>
           <span style={{ fontSize: "12px", color: "var(--text-muted)" }}>Celkem {diaryEntries.length} {diaryEntries.length === 1 ? "událost" : diaryEntries.length < 5 ? "události" : "událostí"}</span>
         </div>

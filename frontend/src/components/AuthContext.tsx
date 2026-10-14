@@ -1,11 +1,11 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { api, getAccessToken, setAccessToken } from "../api";
-import type { AppUser } from "../api";
+import type { AppUser, Portal } from "../api";
 
 interface AuthContextValue {
   user: AppUser | null;
   loading: boolean;
-  login: (username: string, password: string) => Promise<void>;
+  login: (username: string, password: string, portal?: Portal) => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -49,8 +49,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const value = useMemo<AuthContextValue>(() => ({
     user,
     loading,
-    async login(username, password) {
-      const result = await api.login(username, password);
+    async login(username, password, portal = "agc") {
+      const result = await api.login(username, password, portal);
       setAccessToken(result.access_token);
       setUser(result.user);
     },

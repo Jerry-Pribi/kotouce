@@ -86,7 +86,7 @@ export function Locations() {
         </form>
 
         {error && (
-          <div style={{ marginTop: 12, padding: "8px 12px", background: "#fef2f2", color: "#b91c1c", borderRadius: 4, fontSize: "12.5px" }}>
+          <div style={{ marginTop: 12, padding: "8px 12px", background: "var(--st-vyrazen-bg)", color: "var(--st-vyrazen-color)", borderRadius: 4, fontSize: "12.5px" }}>
             {error}
           </div>
         )}
@@ -94,7 +94,7 @@ export function Locations() {
 
       {/* SEZNAM STANOVIŠŤ */}
       <div className="data-table-container">
-        <div style={{ padding: "12px 16px", background: "#f8fafc", borderBottom: "1px solid var(--border-light)" }}>
+        <div style={{ padding: "12px 16px", background: "var(--t-bg-f8fafc, #f8fafc)", borderBottom: "1px solid var(--border-light)" }}>
           <span className="locations-count-label" style={{ color: "var(--text-muted)", fontWeight: 700 }}>
             Aktivní pracoviště a sklady v Chudeřicích ({locations.length})
           </span>
