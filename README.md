@@ -78,6 +78,9 @@ Před prvním spuštěním zkopírujte `.env.example` na `.env` a doplňte vlast
 `ADMIN_PASSWORD` (alespoň 10 znaků). Tento účet se vytvoří nebo povýší na
 megaAdmina; heslo se do databáze ukládá pouze jako bezpečný hash. MegaAdmin
 může spravovat adminy, běžný admin může mazat pouze běžné uživatele.
+Chcete-li rovnou založit také hlavního administrátora firmy reprofilace, vyplňte
+`REPAIR_ADMIN_USERNAME` a `REPAIR_ADMIN_PASSWORD` (alespoň 10 znaků), případně
+upravte `REPAIR_COMPANY_NAME`. Firma se při startu vytvoří, pokud ještě neexistuje.
 
 ```text
 Spuštění:  dvakrát kliknout na soubor  spustit.bat
@@ -131,6 +134,9 @@ Aplikace běží na `http://localhost:5173`.
 
 Před prvním lokálním spuštěním backendu nastavte v `backend/.env` také
 `ADMIN_USERNAME=admin` a vlastní `ADMIN_PASSWORD` o délce alespoň 10 znaků.
+Pro prvního hlavního administrátora reprofilace nastavte také
+`REPAIR_ADMIN_USERNAME`, `REPAIR_ADMIN_PASSWORD` (alespoň 10 znaků) a volitelně
+`REPAIR_COMPANY_NAME` (výchozí `Prostor reprofilace`).
 Při startu se účet založí, pokud ještě neexistuje. Potom se přihlaste přes
 web; admin může na stránce **Administrace** spravovat běžné uživatele a
 zakládat stanoviště. MegaAdmin navíc může mazat adminy a vytvářet další

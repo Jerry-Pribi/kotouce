@@ -124,20 +124,19 @@ export function AdminPanel() {
       {error && <div className="admin-message error" role="alert">{error}</div>}
       {notice && <div className="admin-message success" role="status">{notice}</div>}
 
-      <section className="card admin-create-card">
-        <div className="card-header"><div><div className="card-title">Přidat uživatele</div><div className="card-subtitle">Nový účet může používat evidenci; administrátor může spravovat také uživatele.</div></div></div>
-        <form onSubmit={addUser} className="admin-user-form">
-          <div className="filter-field"><label htmlFor="new-username">Uživatelské jméno</label><input id="new-username" autoComplete="off" minLength={3} maxLength={32} pattern="[a-zA-Z0-9][a-zA-Z0-9_.-]{2,31}" value={username} onChange={(e) => setUsername(e.target.value)} required placeholder="např. operator1" /></div>
-          <PasswordField id="new-password" label="Dočasné heslo (min. 10 znaků)" autoComplete="new-password" minLength={10} value={password} onChange={setPassword} required />
-          <div className="filter-field"><label htmlFor="new-role">Oprávnění</label><select id="new-role" value={role} onChange={(e) => setRole(e.target.value as "user" | "admin")}><option value="user">Běžný uživatel</option><option value="admin">Administrátor</option></select></div>
-          <button className="btn btn-primary" type="submit">＋ Vytvořit účet</button>
-        </form>
-      </section>
-
       {currentUser?.role === "mega_admin" && <RepairCompaniesSection />}
 
       <section className="card admin-section">
         <div className="card-header"><div><div className="card-title">Uživatelské účty <span className="count-chip">{users.length}</span></div><div className="card-subtitle">Kliknutím na jméno lze upravit účet podle role. Změna hesla ukončí aktivní přihlášení daného účtu.</div></div></div>
+        <div className="admin-create-card">
+          <div className="card-header"><div><div className="card-title">Vytvořit uživatelský účet</div><div className="card-subtitle">Nový účet může používat evidenci; administrátor může spravovat také uživatele.</div></div></div>
+          <form onSubmit={addUser} className="admin-user-form">
+            <div className="filter-field"><label htmlFor="new-username">Uživatelské jméno</label><input id="new-username" autoComplete="off" minLength={3} maxLength={32} pattern="[a-zA-Z0-9][a-zA-Z0-9_.-]{2,31}" value={username} onChange={(e) => setUsername(e.target.value)} required placeholder="např. operator1" /></div>
+            <PasswordField id="new-password" label="Dočasné heslo (min. 10 znaků)" autoComplete="new-password" minLength={10} value={password} onChange={setPassword} required />
+            <div className="filter-field"><label htmlFor="new-role">Oprávnění</label><select id="new-role" value={role} onChange={(e) => setRole(e.target.value as "user" | "admin")}><option value="user">Běžný uživatel</option><option value="admin">Administrátor</option></select></div>
+            <button className="btn btn-primary" type="submit">＋ Vytvořit účet</button>
+          </form>
+        </div>
         <div className="data-table-container admin-table-container"><table className="data-table"><thead><tr><th>Uživatel</th><th>Role</th><th>Vytvořen</th><th>Poslední přihlášení</th><th>Akce</th></tr></thead>
           <tbody>{users.map((user) => <Fragment key={user.id}><tr><td>{canResetPassword(user) ? <button className="account-expand-button" type="button" aria-expanded={expandedAccountId === user.id} onClick={() => { setExpandedAccountId(expandedAccountId === user.id ? null : user.id); setReplacementPassword(""); setReplacementUsername(user.username); }}><strong>{user.username}</strong><span>{expandedAccountId === user.id ? "▾" : "▸"}</span></button> : <strong>{user.username}</strong>}</td><td><span className={`role-pill ${user.role}`}>{roleLabel(user.role)}</span></td><td>{formatDate(user.created_at)}</td><td>{formatDate(user.last_login_at)}</td><td><button className="btn-remove-user" disabled={!canDeleteUser(user)} title={!canDeleteUser(user) ? currentUser?.role === "admin" ? "Admin nemůže mazat adminy ani svůj účet" : "Účet megaAdmina je chráněný" : undefined} onClick={() => void removeUser(user)}>Odstranit</button></td></tr>{expandedAccountId === user.id && canResetPassword(user) && <tr className="account-expanded-row"><td colSpan={5}><div className="account-management-forms"><form className="account-username-form" onSubmit={(event) => void renameAccount(event, user)}><div className="filter-field"><label htmlFor={`rename-user-${user.id}`}>Uživatelské jméno</label><input id={`rename-user-${user.id}`} minLength={3} maxLength={32} pattern="[a-zA-Z0-9][a-zA-Z0-9_.-]{2,31}" autoComplete="off" value={replacementUsername} onChange={(event) => setReplacementUsername(event.target.value)} required /></div><button className="btn btn-secondary" type="submit">Uložit jméno</button></form><form className="account-password-form" onSubmit={(event) => void resetPassword(event, user)}><PasswordField id={`reset-password-${user.id}`} label={`Nastavit nové heslo (min. 10 znaků)`} autoComplete="new-password" minLength={10} value={replacementPassword} onChange={setReplacementPassword} required /><button className="btn btn-primary" type="submit">Uložit nové heslo</button></form></div></td></tr>}</Fragment>)}
             {users.length === 0 && <tr><td colSpan={5} className="admin-empty">Zatím tu nejsou žádné účty.</td></tr>}</tbody></table></div>

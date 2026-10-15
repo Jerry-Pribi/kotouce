@@ -60,40 +60,51 @@ export function RepairApp() {
           </div>
         </div>
         <nav>{nav}</nav>
-        <div className="rp-side-foot">
-          <div className="rp-me">
-            <span className="rp-me-avatar" aria-hidden="true">{user?.username.slice(0, 1).toUpperCase()}</span>
-            <div>
-              <strong>{user?.username}</strong>
-              <span>{ROLE_LABELS[user?.role ?? "user"]}</span>
-            </div>
-          </div>
-          <div className="rp-side-buttons">
-            <ThemeToggle className="theme-toggle rp-side-btn" />
-            <button className="rp-side-btn" onClick={() => void logout()}>Odhlásit se</button>
-          </div>
-        </div>
       </aside>
 
-      <header className="rp-mobile-top">
-        <span className="rp-brand-mark" aria-hidden="true" />
-        <div>
-          <div className="rp-brand-name">{company}</div>
-          <div className="rp-brand-sub">{user?.username}</div>
-        </div>
-        <ThemeToggle className="theme-toggle rp-side-btn" />
-        <button className="rp-side-btn" onClick={() => void logout()}>Odhlásit</button>
-      </header>
+      <div className="rp-workspace">
+        <header className="rp-topbar">
+          <div className="rp-topbar-brand">
+            <span className="rp-brand-mark" aria-hidden="true" />
+            <div className="rp-topbar-breadcrumb">
+              <strong>{company}</strong><span>/</span><b>Reprofilace</b>
+            </div>
+          </div>
+          <div className="rp-topbar-account">
+            <div className="rp-me">
+              <span className="rp-me-avatar" aria-hidden="true">{user?.username.slice(0, 1).toUpperCase()}</span>
+              <div>
+                <strong>{user?.username}</strong>
+                <span>{ROLE_LABELS[user?.role ?? "user"]}</span>
+              </div>
+            </div>
+            <div className="rp-side-buttons">
+              <ThemeToggle className="theme-toggle rp-side-btn" />
+              <button className="rp-side-btn" onClick={() => void logout()}>Odhlásit se</button>
+            </div>
+          </div>
+        </header>
 
-      <main className="rp-main">
-        <Routes>
-          <Route path="/" element={<RepairBoard summary={summary} onChanged={reloadSummary} />} />
-          <Route path="/historie" element={<RepairHistory />} />
-          <Route path="/kotouc/:id" element={<RepairWheelPage onChanged={reloadSummary} />} />
-          {isAdmin && <Route path="/administrace" element={<RepairAdmin />} />}
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </main>
+        <header className="rp-mobile-top">
+          <span className="rp-brand-mark" aria-hidden="true" />
+          <div>
+            <div className="rp-brand-name">{company}</div>
+            <div className="rp-brand-sub">Reprofilace · {user?.username}</div>
+          </div>
+          <ThemeToggle className="theme-toggle rp-side-btn" />
+          <button className="rp-side-btn" onClick={() => void logout()}>Odhlásit</button>
+        </header>
+
+        <main className="rp-main">
+          <Routes>
+            <Route path="/" element={<RepairBoard summary={summary} onChanged={reloadSummary} />} />
+            <Route path="/historie" element={<RepairHistory />} />
+            <Route path="/kotouc/:id" element={<RepairWheelPage onChanged={reloadSummary} />} />
+            {isAdmin && <Route path="/administrace" element={<RepairAdmin />} />}
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </main>
+      </div>
 
       <nav className="rp-tabbar" aria-label="Menu">{nav}</nav>
     </div>

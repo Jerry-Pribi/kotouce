@@ -4,12 +4,12 @@ from datetime import timedelta
 from fastapi import FastAPI, Depends, HTTPException, Query, Request, Response
 from fastapi.security import HTTPAuthorizationCredentials
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy import select, update
+from sqlalchemy import or_, select, update
 from sqlalchemy.orm import Session
 
 from . import models, schemas, crud
 from .database import Base, engine, get_db, SessionLocal
-from .accounts import make_accounts_router, validate_new_account
+from .accounts import make_accounts_router, username_scope, validate_new_account
 from .deps import bearer_scheme, get_current_user, get_session_user, require_admin, require_repair_admin
 from .repair import router as repair_router
 from .security import hash_password, hash_token, new_session_token, verify_password
@@ -53,7 +53,9 @@ def initialize_admin() -> None:
     if not username or len(password) < 10:
         raise RuntimeError("ADMIN_USERNAME a ADMIN_PASSWORD (alespoň 10 znaků) musí být nastavené společně.")
     with SessionLocal() as db:
-        existing = db.scalar(select(models.User).where(models.User.username == username))
+        existing = db.scalar(select(models.User).where(
+            models.User.username == username, models.User.location_id.is_(None)
+        ))
         if existing:
             existing.role = models.UserRole.MEGA_ADMIN
             db.execute(
@@ -67,20 +69,88 @@ def initialize_admin() -> None:
         db.execute(update(models.User).where(
             models.User.role == models.UserRole.MEGA_ADMIN, models.User.location_id.is_(None)
         ).values(role=models.UserRole.ADMIN))
-        db.add(models.User(username=username, password_hash=hash_password(password), role=models.UserRole.MEGA_ADMIN))
+        db.add(models.User(username=username, password_hash=hash_password(password), role=models.UserRole.MEGA_ADMIN,
+                           username_scope=username_scope(None)))
+        db.commit()
+
+
+def initialize_repair_admin() -> None:
+    """Create the configured first mega admin for a reprofiling company."""
+    username = os.getenv("REPAIR_ADMIN_USERNAME", "").strip().lower()
+    password = os.getenv("REPAIR_ADMIN_PASSWORD", "")
+    company_name = os.getenv("REPAIR_COMPANY_NAME", "Prostor reprofilace").strip()
+    if not username and not password:
+        return
+    if not username or len(password) < 10 or not company_name:
+        raise RuntimeError(
+            "REPAIR_ADMIN_USERNAME a REPAIR_ADMIN_PASSWORD (alespoň 10 znaků) "
+            "musí být nastavené společně; REPAIR_COMPANY_NAME nesmí být prázdné."
+        )
+
+    with SessionLocal() as db:
+        company = db.scalar(select(models.Location).where(models.Location.name == company_name))
+        if company and company.type != models.LocationType.REPROFILACE:
+            raise RuntimeError(f"REPAIR_COMPANY_NAME '{company_name}' již existuje a není firmou reprofilace.")
+        if company is None:
+            company = models.Location(name=company_name, type=models.LocationType.REPROFILACE)
+            db.add(company)
+            db.flush()
+
+        existing = db.scalar(select(models.User).where(
+            models.User.username == username, models.User.location_id == company.id
+        ))
+        other_repair_users = db.scalars(select(models.User).where(
+            models.User.username == username,
+            models.User.location_id.is_not(None),
+            models.User.location_id != company.id,
+        )).all()
+        if any(verify_password(password, other.password_hash) for other in other_repair_users):
+            raise RuntimeError(
+                f"Uživatelské jméno REPAIR_ADMIN_USERNAME '{username}' je v jiné firmě reprofilace "
+                "použité se stejným heslem. Nastavte jiné heslo."
+            )
+
+        db.execute(
+            update(models.User)
+            .where(models.User.location_id == company.id, models.User.role == models.UserRole.MEGA_ADMIN)
+            .values(role=models.UserRole.ADMIN)
+        )
+        if existing:
+            existing.role = models.UserRole.MEGA_ADMIN
+        else:
+            db.add(models.User(
+                username=username,
+                password_hash=hash_password(password),
+                role=models.UserRole.MEGA_ADMIN,
+                location_id=company.id,
+                username_scope=username_scope(company.id),
+            ))
         db.commit()
 
 
 Base.metadata.create_all(bind=engine)
 initialize_admin()
+initialize_repair_admin()
 
 
 @app.post("/api/auth/login", response_model=schemas.LoginResponse)
 def login(data: schemas.LoginRequest, request: Request, db: Session = Depends(get_db)):
     username = data.username.strip().lower()
-    user = db.scalar(select(models.User).where(models.User.username == username))
-    if not user or not user.is_active or not verify_password(data.password, user.password_hash):
+    is_repair_portal = data.portal == "reprofilace"
+    candidates = db.scalars(select(models.User).where(
+        models.User.username == username,
+        models.User.location_id.is_not(None) if is_repair_portal else models.User.location_id.is_(None),
+    )).all()
+    matches = [user for user in candidates if verify_password(data.password, user.password_hash)]
+    if not matches:
         raise HTTPException(401, "Neplatné přihlašovací údaje")
+    if len(matches) > 1:
+        raise HTTPException(409, "Tyto přihlašovací údaje odpovídají více firmám reprofilace. Kontaktujte správce.")
+    user = matches[0]
+    if not user.is_active:
+        raise HTTPException(401, "Neplatné přihlašovací údaje")
+    if user.location_id is not None and (user.location is None or not user.location.is_active):
+        raise HTTPException(403, "Spolupráce s vaší firmou byla ukončena. Kontaktujte AGC.")
     # Každý účet se přihlašuje ve své sekci (záložka AGC / Reprofilace na přihlašovací stránce)
     is_repair = user.location_id is not None
     if is_repair and data.portal != "reprofilace":
@@ -140,12 +210,13 @@ def require_mega_admin(user: models.User = Depends(require_admin)) -> models.Use
 def list_repair_companies(db: Session = Depends(get_db), _admin: models.User = Depends(require_mega_admin)):
     """Místa reprofilace (firmy) a jestli už mají účty. Účty samotné AGC nevidí — spravuje si je firma."""
     companies = db.scalars(
-        select(models.Location).where(models.Location.type == models.LocationType.REPROFILACE).order_by(models.Location.name)
+        select(models.Location).where(models.Location.type == models.LocationType.REPROFILACE)
+        .order_by(models.Location.is_active.desc(), models.Location.name)
     ).all()
     out = []
     for c in companies:
         count = len(db.scalars(select(models.User.id).where(models.User.location_id == c.id)).all())
-        out.append(schemas.RepairCompanyOut(id=c.id, name=c.name, accounts=count))
+        out.append(schemas.RepairCompanyOut(id=c.id, name=c.name, accounts=count, is_active=c.is_active))
     return out
 
 
@@ -161,14 +232,15 @@ def create_repair_company(
         raise HTTPException(400, "Zadejte název firmy")
     if db.scalar(select(models.Location.id).where(models.Location.name == name)):
         raise HTTPException(409, "Firma nebo stanoviště s tímto názvem už existuje")
-    username = validate_new_account(db, data.username, data.password)
     company = models.Location(name=name, type=models.LocationType.REPROFILACE)
     db.add(company)
     db.flush()
+    username = validate_new_account(db, data.username, data.password, company.id)
     db.add(models.User(username=username, password_hash=hash_password(data.password),
-                       role=models.UserRole.MEGA_ADMIN, location_id=company.id))
+                       role=models.UserRole.MEGA_ADMIN, location_id=company.id,
+                       username_scope=username_scope(company.id)))
     db.commit()
-    return schemas.RepairCompanyOut(id=company.id, name=company.name, accounts=1)
+    return schemas.RepairCompanyOut(id=company.id, name=company.name, accounts=1, is_active=company.is_active)
 
 
 @app.post("/api/admin/repair-companies/{location_id}/first-admin", response_model=schemas.RepairCompanyOut, status_code=201)
@@ -182,13 +254,53 @@ def create_company_first_admin(
     company = db.get(models.Location, location_id)
     if not company or company.type != models.LocationType.REPROFILACE:
         raise HTTPException(404, "Firma reprofilace nenalezena")
+    if not company.is_active:
+        raise HTTPException(409, "Spolupráce s firmou je ukončená. Nejdříve ji obnovte.")
     if db.scalar(select(models.User.id).where(models.User.location_id == company.id)):
         raise HTTPException(409, "Firma už má účty — další si zakládá sama ve své administraci")
-    username = validate_new_account(db, data.username, data.password)
+    username = validate_new_account(db, data.username, data.password, company.id)
     db.add(models.User(username=username, password_hash=hash_password(data.password),
-                       role=models.UserRole.MEGA_ADMIN, location_id=company.id))
+                       role=models.UserRole.MEGA_ADMIN, location_id=company.id,
+                       username_scope=username_scope(company.id)))
     db.commit()
-    return schemas.RepairCompanyOut(id=company.id, name=company.name, accounts=1)
+    return schemas.RepairCompanyOut(id=company.id, name=company.name, accounts=1, is_active=company.is_active)
+
+
+@app.delete("/api/admin/repair-companies/{location_id}", status_code=204)
+def end_repair_company_cooperation(
+    location_id: int,
+    db: Session = Depends(get_db),
+    _admin: models.User = Depends(require_mega_admin),
+):
+    """Ukončí spolupráci, zablokuje přihlášení firmy a zachová její účty i historii."""
+    company = db.get(models.Location, location_id)
+    if not company or company.type != models.LocationType.REPROFILACE:
+        raise HTTPException(404, "Firma reprofilace nenalezena")
+    if company.is_active:
+        now = models.utc_now()
+        company.is_active = False
+        db.execute(update(models.UserSession).where(
+            models.UserSession.location_id == company.id,
+            models.UserSession.ended_at.is_(None),
+        ).values(ended_at=now))
+        db.commit()
+    return Response(status_code=204)
+
+
+@app.post("/api/admin/repair-companies/{location_id}/restore", response_model=schemas.RepairCompanyOut)
+def restore_repair_company_cooperation(
+    location_id: int,
+    db: Session = Depends(get_db),
+    _admin: models.User = Depends(require_mega_admin),
+):
+    """Obnoví spolupráci, aniž by obnovovala předtím ukončené přihlášené relace."""
+    company = db.get(models.Location, location_id)
+    if not company or company.type != models.LocationType.REPROFILACE:
+        raise HTTPException(404, "Firma reprofilace nenalezena")
+    company.is_active = True
+    db.commit()
+    accounts = len(db.scalars(select(models.User.id).where(models.User.location_id == company.id)).all())
+    return schemas.RepairCompanyOut(id=company.id, name=company.name, accounts=accounts, is_active=company.is_active)
 
 
 @app.get("/api/admin/audits/wheel-creations", response_model=list[schemas.WheelCreationAuditOut])
@@ -240,7 +352,9 @@ def create_profile(data: schemas.ProfileCreate, db: Session = Depends(get_db), _
 
 @app.get("/api/locations", response_model=list[schemas.LocationOut])
 def list_locations(db: Session = Depends(get_db), _user: models.User = Depends(get_current_user)):
-    return db.scalars(select(models.Location).order_by(models.Location.name)).all()
+    return db.scalars(select(models.Location).where(
+        or_(models.Location.type != models.LocationType.REPROFILACE, models.Location.is_active.is_(True))
+    ).order_by(models.Location.name)).all()
 
 
 @app.post("/api/locations", response_model=schemas.LocationOut)
@@ -304,6 +418,8 @@ def create_wheel(data: schemas.WheelCreate, db: Session = Depends(get_db), user:
     if existing:
         raise HTTPException(400, "Kotouč s tímto výrobním číslem už v databázi existuje")
     location = db.get(models.Location, data.location_id) if data.location_id else None
+    if location and location.type == models.LocationType.REPROFILACE and not location.is_active:
+        raise HTTPException(400, "Tato firma reprofilace už s AGC nespolupracuje.")
     if data.status == models.WheelStatus.V_PROVOZU:
         taken_by_name = (data.taken_by_name or "").strip()
         if not location or location.type != models.LocationType.LINKA:
@@ -406,6 +522,8 @@ def patch_wheel(wheel_id: int, data: schemas.WheelUpdate, db: Session = Depends(
         ))
     # Cesta na reprofilaci: odeslání, firma, převzetí zpět (historie reprofilací kotouče)
     new_location = db.get(models.Location, data.location_id) if data.location_id else None
+    if new_location and new_location.type == models.LocationType.REPROFILACE and not new_location.is_active:
+        raise HTTPException(400, "Tato firma reprofilace už s AGC nespolupracuje.")
     crud.track_reprofiling(db, wheel, wheel.status, data.status, new_location, user)
     wheel = crud.update_wheel(db, wheel, data)
     return crud.to_wheel_out(db, wheel)

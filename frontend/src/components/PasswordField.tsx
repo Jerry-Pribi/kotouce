@@ -8,13 +8,14 @@ type PasswordFieldProps = {
   autoComplete: string;
   minLength?: number;
   required?: boolean;
+  wrapperClassName?: string;
 };
 
-export function PasswordField({ id, label, value, onChange, autoComplete, minLength, required = false }: PasswordFieldProps) {
+export function PasswordField({ id, label, value, onChange, autoComplete, minLength, required = false, wrapperClassName = "filter-field" }: PasswordFieldProps) {
   const [visible, setVisible] = useState(false);
 
   return (
-    <div className="filter-field">
+    <div className={wrapperClassName}>
       <label htmlFor={id}>{label}</label>
       <div className="password-input-wrap">
         <input id={id} type={visible ? "text" : "password"} autoComplete={autoComplete} minLength={minLength} value={value} onChange={(event) => onChange(event.target.value)} required={required} />

@@ -49,6 +49,28 @@ export function RepairCompaniesSection() {
     } catch (err) { failed(err); }
   }
 
+  async function endCooperation(company: RepairCompany) {
+    const confirmed = window.confirm(
+      `Opravdu ukončit spolupráci s firmou „${company.name}“? Její přihlášené relace se ukončí a její účty se nebudou moci přihlásit. Účty, kotouče a historie zůstanou zachované.`,
+    );
+    if (!confirmed) return;
+    setMessage(null);
+    try {
+      await api.endRepairCompanyCooperation(company.id);
+      setMessage({ ok: true, text: `Spolupráce s firmou ${company.name} byla ukončena.` });
+      await load();
+    } catch (err) { failed(err); }
+  }
+
+  async function restoreCooperation(company: RepairCompany) {
+    setMessage(null);
+    try {
+      await api.restoreRepairCompanyCooperation(company.id);
+      setMessage({ ok: true, text: `Spolupráce s firmou ${company.name} byla obnovena. Její uživatelé se mohou znovu přihlásit.` });
+      await load();
+    } catch (err) { failed(err); }
+  }
+
   return (
     <section className="card admin-section">
       <div className="card-header">
@@ -56,7 +78,8 @@ export function RepairCompaniesSection() {
           <div className="card-title">Firmy reprofilace <span className="count-chip">{companies.length}</span></div>
           <div className="card-subtitle">
             Jen pro megaAdmina AGC. Firma, která kotouče přebrušuje, má vlastní účty oddělené od AGC. Tady ji přidáte i s prvním účtem
-            (jejím megaAdminem) — další účty si firma spravuje sama. Firma se zároveň objeví jako místo reprofilace v evidenci kotoučů.
+            (jejím megaAdminem) — další účty si firma spravuje sama. Ukončením spolupráce zablokujete její přístup a odeberete ji z výběru firem;
+            účty a historie zůstanou zachované a spolupráci lze obnovit.
           </div>
         </div>
       </div>
@@ -75,16 +98,17 @@ export function RepairCompaniesSection() {
         <button className="btn btn-primary" type="submit">＋ Přidat firmu</button>
       </form>
 
-      <div className="data-table-container admin-table-container" style={{ marginTop: 16 }}>
+      <div className="data-table-container admin-table-container repair-companies-table" style={{ marginTop: 16 }}>
         <table className="data-table">
-          <thead><tr><th>Firma</th><th>Účty firmy</th><th /></tr></thead>
+          <thead><tr><th>Firma</th><th>Účty firmy</th><th>Spolupráce</th><th /></tr></thead>
           <tbody>
             {companies.map((c) => (
-              <tr key={c.id}>
+              <tr key={c.id} className={c.is_active ? "" : "repair-company-inactive"}>
                 <td><strong>{c.name}</strong></td>
                 <td>{c.accounts > 0 ? `${c.accounts} — spravuje si je firma` : "zatím žádný účet"}</td>
+                <td><span className={`repair-company-status ${c.is_active ? "active" : "inactive"}`}>{c.is_active ? "Aktivní" : "Ukončená"}</span></td>
                 <td>
-                  {c.accounts === 0 && openId !== c.id && (
+                  {c.is_active && c.accounts === 0 && openId !== c.id && (
                     <button className="btn btn-secondary" onClick={() => { setOpenId(c.id); setMessage(null); }}>Založit první účet</button>
                   )}
                   {openId === c.id && (
@@ -98,10 +122,13 @@ export function RepairCompaniesSection() {
                       <button className="btn btn-secondary" type="button" onClick={() => setOpenId(null)}>Zrušit</button>
                     </form>
                   )}
+                  {c.is_active
+                    ? <button className="btn btn-danger" type="button" onClick={() => void endCooperation(c)}>Ukončit spolupráci</button>
+                    : <button className="btn btn-secondary" type="button" onClick={() => void restoreCooperation(c)}>Obnovit spolupráci</button>}
                 </td>
               </tr>
             ))}
-            {companies.length === 0 && <tr><td colSpan={3} className="admin-empty">Zatím žádná firma reprofilace.</td></tr>}
+            {companies.length === 0 && <tr><td colSpan={4} className="admin-empty">Zatím žádná firma reprofilace.</td></tr>}
           </tbody>
         </table>
       </div>

@@ -274,6 +274,7 @@ class RepairCompanyOut(BaseModel):
     id: int
     name: str
     accounts: int
+    is_active: bool
 
 
 class CompanyFirstAdmin(BaseModel):

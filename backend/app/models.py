@@ -19,6 +19,7 @@ from sqlalchemy import (
     ForeignKey,
     Date,
     DateTime,
+    Index,
     Text,
     UniqueConstraint,
     Boolean,
@@ -58,9 +59,11 @@ class UserRole(str, enum.Enum):
 
 class User(Base):
     __tablename__ = "users"
+    __table_args__ = (Index("uq_users_username_scope", "username", "username_scope", unique=True),)
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    username: Mapped[str] = mapped_column(String(80), unique=True, index=True)
+    username: Mapped[str] = mapped_column(String(80), index=True)
+    username_scope: Mapped[str] = mapped_column(String(40), nullable=False, default="agc", server_default="agc")
     password_hash: Mapped[str] = mapped_column(String(255))
     role: Mapped[UserRole] = mapped_column(
         Enum(UserRole, values_callable=lambda x: [e.value for e in x], native_enum=False, length=20),
@@ -153,6 +156,7 @@ class Location(Base):
     type: Mapped[LocationType] = mapped_column(
         Enum(LocationType, values_callable=lambda x: [e.value for e in x], native_enum=False, length=30)
     )
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
 
     wheels: Mapped[list["Wheel"]] = relationship(back_populates="location")
 

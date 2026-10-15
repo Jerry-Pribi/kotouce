@@ -998,7 +998,7 @@ body { font-size: 14px; }
 
 /* Levá navigace a výrazné provozní údaje */
 .app-shell { min-height: 100vh; display: flex; flex-direction: row; background: var(--t-bg-f2f6fb); }
-.sidebar { width: 258px; min-width: 258px; min-height: 100vh; padding: 25px 16px 18px; display: flex; flex-direction: column; color: #d9e9f8; background: linear-gradient(175deg,#123a65 0%,#0a2949 100%); box-shadow: 5px 0 24px rgba(11,39,67,.12); z-index: 10; }
+.sidebar { position: sticky; top: 0; align-self: flex-start; width: 258px; min-width: 258px; height: 100vh; min-height: 100vh; padding: 25px 16px 18px; display: flex; flex-direction: column; color: #d9e9f8; background: linear-gradient(175deg,#123a65 0%,#0a2949 100%); box-shadow: 5px 0 24px rgba(11,39,67,.12); z-index: 10; }
 .sidebar-brand { display: flex; align-items: center; gap: 12px; padding: 0 8px 28px; }
 .sidebar-mark { width: 43px; height: 43px; display: grid; place-items: center; border-radius: 12px; background: var(--t-bg-ffffff); color: #145b96; font-size: 12px; font-weight: 900; letter-spacing: .04em; box-shadow: 0 5px 14px rgba(0,0,0,.12); }
 .sidebar-brand-title { color: #fff; font-size: 14px; font-weight: 800; letter-spacing: -.02em; }
@@ -1141,9 +1141,11 @@ button, input, select, textarea { font-size: 15px; }
 }
 
 /* Přihlášení a administrační část */
-.signed-in-user { display: flex; flex-direction: column; min-width: 84px; color: var(--t-text-244865); line-height: 1.25; }
+.signed-in-user { display: flex; flex-direction: row; align-items: center; gap: 10px; min-width: 84px; color: var(--t-text-244865); line-height: 1.25; }
+.signed-in-avatar { width: 36px; height: 36px; flex: 0 0 36px; display: grid; place-items: center; border-radius: 50%; background: #fff1da; color: #b86a00; font-size: 13px; font-weight: 700; }
+.signed-in-label { display: flex; flex-direction: column; color: var(--t-text-244865) !important; font-size: inherit !important; }
 .signed-in-user strong { font-size: 12px; }
-.signed-in-user span { color: var(--t-text-7b8fa2); font-size: 10px; }
+.signed-in-label > span { color: var(--t-text-7b8fa2); font-size: 10px; }
 .header-logout { padding: 8px 10px; border: 1px solid var(--t-line-d6e3ef); border-radius: 8px; background: var(--t-bg-ffffff); color: var(--t-text-47647c); font: inherit; font-size: 12px; cursor: pointer; }
 .header-logout:hover { background: var(--t-bg-f1f7fc); color: #145b94; }
 .login-screen { min-height: 100vh; display: grid; place-items: center; padding: 24px; background: radial-gradient(ellipse at 75% 15%,#d8ecfb,transparent 34%),linear-gradient(140deg,var(--t-bg-eaf2f9),var(--t-bg-f8fbfe) 55%,var(--t-bg-e7f1fa)); }
@@ -1194,6 +1196,15 @@ button, input, select, textarea { font-size: 15px; }
 .admin-table-container { overflow-x: auto; }
 .admin-table-container .data-table { min-width: 680px; }
 .admin-table-container td { vertical-align: middle; }
+.repair-companies-table .data-table { min-width: 820px; }
+.repair-companies-table .repair-company-inactive td { color: var(--t-text-75879a); background: var(--t-bg-f7f9fb); }
+.repair-company-status { display: inline-flex; align-items: center; padding: 4px 9px; border-radius: 999px; font-size: 11px; font-weight: 750; white-space: nowrap; }
+.repair-company-status.active { color: #176345; background: #e5f6ed; }
+.repair-company-status.inactive { color: #725b3e; background: #f0e9dc; }
+.repair-companies-table td:last-child .btn + .btn { margin-left: 8px; }
+:root[data-theme="dark"] .repair-companies-table .repair-company-inactive td { color: #aebaca; background: #17202b; }
+:root[data-theme="dark"] .repair-company-status.active { color: #8fe0b4; background: #173a2d; }
+:root[data-theme="dark"] .repair-company-status.inactive { color: #d2b98e; background: #393125; }
 .account-expand-button { display: inline-flex; min-height: 0 !important; align-items: center; gap: 9px; padding: 4px 0; border: 0; background: transparent; color: #1e5f91; cursor: pointer; }
 .account-expand-button:hover { color: var(--t-text-123f67); }
 .account-expand-button span { color: #7892a8; font-size: 15px; }
@@ -1656,10 +1667,29 @@ button, input, select, textarea { font-size: 15px; }
   background: linear-gradient(145deg, #1769aa, #123b68); color: #fff; font-size: 10px; font-weight: 900;
 }
 .login-portals button:nth-child(2) .login-portal-mark { background: linear-gradient(145deg, #f59e0b, #b45309); font-size: 15px; }
-.login-reprofilace .eyebrow { color: var(--rp-accent-strong); }
-.login-reprofilace .btn.login-submit { background: var(--rp-header); color: #fff; }
+.login-reprofilace {
+  background: radial-gradient(ellipse at 78% 18%, rgba(245, 158, 11, .2), transparent 34%),
+    linear-gradient(140deg, #fff6e7, #fffaf2 56%, #f8ead5);
+}
+.login-reprofilace .login-card { border-color: #efd6af; background: #fffdf8; box-shadow: inset 0 4px 0 #ed9410, 0 22px 60px rgba(132, 78, 15, .16); }
+.login-reprofilace .login-card h1 { color: #5c3512; }
+.login-reprofilace .login-portals { background: #f5e8d5; }
+.login-reprofilace .login-portals button.active { background: #ed9410; color: #2a1b0b; box-shadow: 0 2px 8px rgba(148, 83, 7, .2); }
+.login-reprofilace .login-portals button:nth-child(2) .login-portal-mark { background: #fff4df; color: #a95700; }
+.login-reprofilace .eyebrow { color: #a95700; }
+.login-reprofilace .login-form input:focus { border-color: #ed9410; box-shadow: 0 0 0 3px rgba(237, 148, 16, .2); }
+.login-reprofilace .btn.login-submit { background: linear-gradient(110deg, #d97706, #b95e06); color: #fff; box-shadow: 0 7px 16px rgba(173, 96, 7, .2); }
+.login-reprofilace .btn.login-submit:hover:not(:disabled) { background: linear-gradient(110deg, #bf6505, #984a04); }
 :root[data-theme="dark"] .login-screen { background: radial-gradient(ellipse at 75% 15%, rgba(77, 158, 240, .16), transparent 40%), var(--bg-app); }
-:root[data-theme="dark"] .login-reprofilace .btn.login-submit { background: var(--rp-accent); color: #1f2937; }
+:root[data-theme="dark"] .login-screen.login-reprofilace { background: radial-gradient(ellipse at 78% 18%, rgba(245, 158, 11, .17), transparent 38%), linear-gradient(140deg, #171613, #211f1b 58%, #171613); }
+:root[data-theme="dark"] .login-reprofilace .login-card { border-color: #514636; background: #211f1b; box-shadow: inset 0 4px 0 #ed9410, 0 22px 60px rgba(0, 0, 0, .42); }
+:root[data-theme="dark"] .login-reprofilace .login-card h1 { color: #fff1da; }
+:root[data-theme="dark"] .login-reprofilace .login-card > p { color: #cfb998; }
+:root[data-theme="dark"] .login-reprofilace .login-portals { background: #302a20; }
+:root[data-theme="dark"] .login-reprofilace .login-portals button.active { background: #ed9410; color: #21180f; }
+:root[data-theme="dark"] .login-reprofilace .login-form input { background: #171613; border-color: #514636; color: #fff5e5; }
+:root[data-theme="dark"] .login-reprofilace .login-form .filter-field span { color: #ead6b7; }
+:root[data-theme="dark"] .login-reprofilace .btn.login-submit { background: linear-gradient(110deg, #d97706, #b95e06); color: #fff; }
 
 .muted-small { color: var(--text-muted); font-size: 11.5px; margin-top: 2px; }
 .role-pill.reprofilace { color: var(--rp-wait); background: var(--rp-wait-bg); }

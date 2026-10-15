@@ -2,6 +2,7 @@ import { Fragment, useCallback, useEffect, useState, type FormEvent } from "reac
 import { api } from "../api";
 import type { AdminSession, AdminUser, UserDeletionAudit } from "../api";
 import { useAuth } from "../components/AuthContext";
+import { PasswordField } from "../components/PasswordField";
 import { formatTime } from "./repairUi";
 
 const ROLE = { mega_admin: "MegaAdmin", admin: "Administrátor", user: "Uživatel" } as Record<string, string>;
@@ -83,10 +84,7 @@ export function RepairAdmin() {
               <label htmlFor="ra-user">Uživatelské jméno</label>
               <input id="ra-user" required minLength={3} maxLength={32} pattern="[a-zA-Z0-9][a-zA-Z0-9_.-]{2,31}" autoComplete="off" value={username} onChange={(e) => setUsername(e.target.value)} placeholder="např. brusic1" />
             </div>
-            <div className="rp-field">
-              <label htmlFor="ra-pass">Heslo (min. 10 znaků)</label>
-              <input id="ra-pass" type="password" required minLength={10} autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} />
-            </div>
+            <PasswordField wrapperClassName="rp-field" id="ra-pass" label="Heslo (min. 10 znaků)" required minLength={10} autoComplete="new-password" value={password} onChange={setPassword} />
             <div className="rp-field">
               <label htmlFor="ra-role">Oprávnění</label>
               <select id="ra-role" value={role} onChange={(e) => setRole(e.target.value as "user" | "admin")}>
@@ -132,8 +130,7 @@ export function RepairAdmin() {
                             <button className="rp-btn rp-btn-line rp-btn-sm" type="submit">Uložit jméno</button>
                           </form>
                           <form className="rp-inline-form" onSubmit={(e) => { e.preventDefault(); void run(() => api.repair.admin.resetPassword(u.id, newPassword), "Heslo je změněné, účet byl odhlášen.").then((ok) => ok && setOpenId(null)); }}>
-                            <label htmlFor={`ra-pw-${u.id}`}>Nové heslo</label>
-                            <input id={`ra-pw-${u.id}`} type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} required minLength={10} autoComplete="new-password" />
+                            <PasswordField wrapperClassName="rp-inline-password-field" id={`ra-pw-${u.id}`} label="Nové heslo" value={newPassword} onChange={setNewPassword} required minLength={10} autoComplete="new-password" />
                             <button className="rp-btn rp-btn-line rp-btn-sm" type="submit">Uložit heslo</button>
                           </form>
                         </td>

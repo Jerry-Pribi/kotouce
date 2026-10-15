@@ -64,6 +64,10 @@ export const api = {
   /** Nová firma jedním krokem: místo reprofilace + její první účet (megaAdmin firmy). */
   createRepairCompany: (name: string, username: string, password: string) =>
     request<RepairCompany>("/api/admin/repair-companies", { method: "POST", body: JSON.stringify({ name, username, password }) }),
+  endRepairCompanyCooperation: (id: number) =>
+    request<void>(`/api/admin/repair-companies/${id}`, { method: "DELETE" }),
+  restoreRepairCompanyCooperation: (id: number) =>
+    request<RepairCompany>(`/api/admin/repair-companies/${id}/restore`, { method: "POST" }),
   createCompanyFirstAdmin: (locationId: number, username: string, password: string) =>
     request<RepairCompany>(`/api/admin/repair-companies/${locationId}/first-admin`, { method: "POST", body: JSON.stringify({ username, password }) }),
   adminWheelCreationAudits: () => request<WheelCreationAudit[]>("/api/admin/audits/wheel-creations"),
@@ -174,6 +178,7 @@ export interface RepairCompany {
   id: number;
   name: string;
   accounts: number;
+  is_active: boolean;
 }
 
 /** Sekce na přihlašovací stránce. */

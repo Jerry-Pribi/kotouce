@@ -12,9 +12,15 @@ export function HeaderNav() {
         <div className="context-breadcrumb"><span>AGC</span><b>/</b> Management kotoučů</div>
         <div className="header-meta">
           <div className="plant-chip"><span className="plant-dot" />Linky 1–3</div>
-          <div className="signed-in-user"><strong>{user?.username}</strong><span>{user?.role === "mega_admin" ? "Mega admin" : user?.role === "admin" ? "Admin" : "Uživatel"}</span></div>
+          <div className="signed-in-user">
+            <span className="signed-in-avatar" aria-hidden="true">{user?.username.slice(0, 1).toUpperCase()}</span>
+            <span className="signed-in-label">
+              <strong>{user?.username}</strong>
+              <span>{user?.role === "mega_admin" ? "Mega admin" : user?.role === "admin" ? "Administrátor" : "Uživatel"}</span>
+            </span>
+          </div>
           <ThemeToggle />
-          <button className="header-logout" onClick={() => void logout()}>Odhlásit</button>
+          <button className="header-logout" onClick={() => void logout()}>Odhlásit se</button>
           <button className="btn-header-add" onClick={() => navigate("/kotouce?novy=1")} title="Přidat kotouč do evidence">
             <span aria-hidden="true">＋</span> Přidat kotouč
           </button>

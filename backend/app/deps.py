@@ -34,6 +34,12 @@ def get_session_user(
     )
     if not session or not session.user or not session.user.is_active:
         raise HTTPException(401, "Přihlášení vypršelo nebo bylo ukončeno")
+    if session.user.location_id is not None and (
+        session.user.location is None or not session.user.location.is_active
+    ):
+        session.ended_at = now
+        db.commit()
+        raise HTTPException(401, "Spolupráce s vaší firmou byla ukončena. Kontaktujte AGC.")
     session.last_seen_at = now
     db.commit()
     return session.user
