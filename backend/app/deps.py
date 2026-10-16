@@ -70,3 +70,10 @@ def require_repair_admin(user: models.User = Depends(require_repair)) -> models.
     if user.role not in {models.UserRole.ADMIN, models.UserRole.MEGA_ADMIN}:
         raise HTTPException(403, "Tato funkce je dostupná pouze administrátorům firmy")
     return user
+
+
+def require_mega_admin(user: models.User = Depends(require_admin)) -> models.User:
+    """Jen megaAdmin AGC (firmy reprofilace, ceny kotoučů, analýza útrat)."""
+    if user.role != models.UserRole.MEGA_ADMIN:
+        raise HTTPException(403, "Tato funkce je dostupná pouze megaAdminovi AGC")
+    return user

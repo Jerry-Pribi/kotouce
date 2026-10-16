@@ -1702,3 +1702,53 @@ button, input, select, textarea { font-size: 15px; }
 .reprofiling-state-prevzato { background: var(--rp-work-bg); color: var(--rp-work); }
 .reprofiling-state-hotovo { background: var(--rp-ok-bg); color: var(--rp-ok); }
 .reprofiling-state-nelze { background: var(--rp-fail-bg); color: var(--rp-fail); }
+
+/* ========================================================
+   ANALÝZA ÚTRAT A CENY KOTOUČŮ (jen megaAdmin)
+   ======================================================== */
+.data-table td.num, .data-table th.num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.savings-total { font-size: 26px !important; white-space: nowrap; }
+.savings-filter-row { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px; }
+.savings-filter-row .btn { margin-left: auto; }
+.savings-firm { min-width: 240px; }
+.savings-mode { display: inline-grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px; margin-bottom: 14px; border-radius: 12px; background: var(--t-bg-edf1f5, #edf1f5); }
+.savings-mode button { min-height: 40px; padding: 0 22px; cursor: pointer; border: none; border-radius: 9px; background: transparent; color: var(--text-muted); font: inherit; font-weight: 700; font-size: 14px; }
+.savings-mode button.active { background: var(--bg-card); color: var(--text-main); box-shadow: 0 2px 8px rgba(0, 0, 0, .08); }
+.savings-metric { display: flex; flex-wrap: wrap; gap: 6px; }
+.savings-firm-button { display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; min-height: 42px; padding: 0 14px; cursor: pointer; border: 1px solid var(--agc-red); border-radius: 6px; background: var(--agc-red-tint); color: var(--text-main); font: inherit; font-weight: 700; font-size: 14px; }
+.savings-firm-button.empty { background: var(--agc-red); color: #fff; }
+.savings-picker { margin-bottom: 16px; padding: 16px 18px; }
+.savings-picker-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; color: var(--text-main); }
+.savings-picker-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
+.savings-picker-item { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; padding: 14px 16px; cursor: pointer; text-align: left; border: 1px solid var(--border-light); border-radius: 10px; background: var(--bg-card); color: var(--text-main); font: inherit; }
+.savings-picker-item:hover { border-color: var(--agc-red); }
+.savings-picker-item.active { border: 2px solid var(--agc-red); background: var(--agc-red-tint); }
+.savings-picker-item small { color: var(--text-muted); font-size: 12px; }
+.savings-dot { display: inline-block; width: 10px; height: 10px; margin-right: 8px; border-radius: 50%; vertical-align: 1px; }
+:root[data-theme="dark"] .savings-firm-button:not(.empty) { background: #1b2a3c; }
+:root[data-theme="dark"] .savings-picker-item.active { background: #1b2a3c; }
+:root[data-theme="dark"] .savings-mode { background: #0b1520; border: 1px solid #263445; }
+:root[data-theme="dark"] .savings-mode button.active { background: #24364d; color: #fff; box-shadow: 0 2px 8px rgba(0, 0, 0, .35); }
+.savings-chart-card .card-header { gap: 12px; flex-wrap: wrap; }
+.savings-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin-bottom: 16px; }
+.savings-kpi { display: flex; flex-direction: column; gap: 4px; padding: 16px 18px; border: 1px solid var(--border-light); border-top: 3px solid var(--border-medium); border-radius: 10px; background: var(--bg-card); }
+.savings-kpi span { color: var(--text-muted); font-size: 12px; font-weight: 600; }
+.savings-kpi strong { color: var(--text-main); font-size: 24px; line-height: 1.15; font-variant-numeric: tabular-nums; }
+.savings-kpi small { color: var(--text-subtle); font-size: 11.5px; }
+.savings-kpi.saved { border-top-color: #16a34a; }
+.savings-kpi.saved strong { color: #15803d; }
+.savings-kpi.spent { border-top-color: #e4a33d; }
+.savings-warning { margin-bottom: 16px; }
+.savings-warning a { color: inherit; font-weight: 700; }
+.savings-chart-card { margin-bottom: 18px; }
+.savings-chart { width: 100%; height: 300px; margin: 6px 0 14px; }
+.savings-cell strong { color: #15803d; }
+.savings-empty { padding: 40px; text-align: center; color: var(--text-muted); }
+.admin-user-form.prices-form { grid-template-columns: 1.3fr .8fr .8fr 1fr auto; }
+.admin-user-form.prices-filter { grid-template-columns: 1.2fr 1fr 1fr .9fr .9fr auto; padding-top: 14px; border-top: 1px solid var(--border-light); }
+.prices-actions { display: flex; gap: 6px; justify-content: flex-end; white-space: nowrap; }
+:root[data-theme="dark"] .savings-kpi.saved strong, :root[data-theme="dark"] .savings-cell strong { color: #4ade80; }
+@media (max-width: 1000px) { .admin-user-form.prices-form, .admin-user-form.prices-filter { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 900px) { .savings-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 700px) { .admin-user-form.prices-form, .admin-user-form.prices-filter { grid-template-columns: 1fr; } .prices-actions { justify-content: flex-start; } }
+@media (max-width: 520px) { .savings-kpis { grid-template-columns: 1fr; } .savings-filter-row .btn { margin-left: 0; } .savings-firm { min-width: 0; width: 100%; } .savings-mode { display: grid; width: 100%; } .savings-mode button { padding: 0 8px; } }

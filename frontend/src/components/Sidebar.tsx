@@ -9,7 +9,15 @@ const LINKS = [
 
 export function Sidebar() {
   const { user } = useAuth();
-  const links = user?.role !== "user" ? [...LINKS, { to: "/admin", label: "Administrace", icon: "⚙" }] : LINKS;
+  const links = [
+    ...LINKS,
+    // Analýza útrat a ceny nových kotoučů — jen megaAdmin
+    ...(user?.role === "mega_admin" ? [
+      { to: "/analyza", label: "Analýza útrat", icon: "◔" },
+      { to: "/ceny", label: "Ceny kotoučů", icon: "◈" },
+    ] : []),
+    ...(user?.role !== "user" ? [{ to: "/admin", label: "Administrace", icon: "⚙" }] : []),
+  ];
   return (
     <aside className="sidebar">
       <div className="sidebar-brand">

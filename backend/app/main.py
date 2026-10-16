@@ -10,7 +10,8 @@ from sqlalchemy.orm import Session
 from . import login_guard, models, schemas, crud
 from .database import Base, engine, get_db, SessionLocal
 from .accounts import make_accounts_router, username_scope, validate_new_account
-from .deps import bearer_scheme, get_current_user, get_session_user, require_admin, require_repair_admin
+from .analytics import router as analytics_router
+from .deps import bearer_scheme, get_current_user, get_session_user, require_admin, require_mega_admin, require_repair_admin
 from .repair import router as repair_router
 from .security import hash_password, hash_token, new_session_token, verify_password
 
@@ -25,6 +26,9 @@ app.add_middleware(
 
 # Část Reprofilace (firma, která kotouče přebrušuje) — vlastní endpointy /api/repair/...
 app.include_router(repair_router)
+
+# Analýza útrat a ceny nových kotoučů (jen megaAdmin AGC) — /api/analytics/...
+app.include_router(analytics_router)
 
 # Správa účtů: stejná pro AGC (/api/admin) i pro každou firmu reprofilace (/api/repair/admin),
 # ale úplně oddělená — admin vidí a spravuje jen účty své firmy.
@@ -194,12 +198,6 @@ def logout(
 
 
 # ---------- Firmy reprofilace: jen založení prvního účtu firmy (smí jen megaAdmin AGC) ----------
-
-def require_mega_admin(user: models.User = Depends(require_admin)) -> models.User:
-    if user.role != models.UserRole.MEGA_ADMIN:
-        raise HTTPException(403, "Účty firem reprofilace zakládá pouze megaAdmin AGC")
-    return user
-
 
 @app.get("/api/admin/repair-companies", response_model=list[schemas.RepairCompanyOut])
 def list_repair_companies(db: Session = Depends(get_db), _admin: models.User = Depends(require_mega_admin)):

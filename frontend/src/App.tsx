@@ -8,6 +8,8 @@ import { WheelDetailPage } from "./pages/WheelDetailPage";
 import { Locations } from "./pages/Locations";
 import { Login } from "./pages/Login";
 import { AdminPanel } from "./pages/AdminPanel";
+import { WheelPrices } from "./pages/WheelPrices";
+import { SavingsAnalysis } from "./pages/SavingsAnalysis";
 import { RepairApp } from "./repair/RepairApp";
 
 function Workspace() {
@@ -29,6 +31,9 @@ function Workspace() {
             <Route path="/kotouce/:id" element={<WheelDetailPage />} />
             <Route path="/lokace" element={<Locations />} />
             <Route path="/admin" element={user.role === "admin" || user.role === "mega_admin" ? <AdminPanel /> : <Navigate to="/" replace />} />
+            {/* Analýza útrat a ceny kotoučů vidí jen megaAdmin */}
+            <Route path="/analyza" element={user.role === "mega_admin" ? <SavingsAnalysis /> : <Navigate to="/" replace />} />
+            <Route path="/ceny" element={user.role === "mega_admin" ? <WheelPrices /> : <Navigate to="/" replace />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </main>

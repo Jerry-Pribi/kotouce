@@ -49,7 +49,7 @@ export function currentJob(wheel: RepairWheel) {
   return wheel.at_us ? wheel.reprofilings.find((r) => !r.returned_at) ?? null : null;
 }
 
-/** Okno „Reprofilace hotová“: cena (nepovinná — často ji určí až faktura) a poznámka. */
+/** Okno „Reprofilace hotová“: cena (povinná — AGC z ní počítá úsporu) a poznámka. */
 export function DoneDialog({ wheel, onClose, onSaved }: { wheel: RepairWheel; onClose: () => void; onSaved: (w: RepairWheel) => void }) {
   const job = currentJob(wheel);
   const [cost, setCost] = useState(job?.cost != null ? String(job.cost) : "");
@@ -60,9 +60,9 @@ export function DoneDialog({ wheel, onClose, onSaved }: { wheel: RepairWheel; on
 
   async function submit(e: FormEvent) {
     e.preventDefault();
-    const price = cost.trim() ? Number(cost.replace(/\s/g, "").replace(",", ".")) : null;
-    if (price !== null && (Number.isNaN(price) || price < 0)) {
-      setError("Cena musí být číslo, nebo ji nechte prázdnou.");
+    const price = Number(cost.replace(/\s/g, "").replace(",", "."));
+    if (!cost.trim() || Number.isNaN(price) || price <= 0) {
+      setError("Zadejte cenu reprofilace (kladné číslo v Kč).");
       return;
     }
     setBusy(true);
@@ -83,12 +83,12 @@ export function DoneDialog({ wheel, onClose, onSaved }: { wheel: RepairWheel; on
           <p>Kotouč <strong>{wheel.serial_number}</strong> · {wheel.manufacturer} · Ø {wheel.diameter} mm</p>
         </div>
         <div className="rp-dialog-body">
-          <label htmlFor="rp-cost">Cena reprofilace</label>
+          <label htmlFor="rp-cost">Cena reprofilace *</label>
           <div className="rp-money">
-            <input id="rp-cost" inputMode="decimal" autoFocus value={cost} onChange={(e) => setCost(e.target.value)} placeholder="např. 1 850" />
+            <input id="rp-cost" inputMode="decimal" autoFocus value={cost} onChange={(e) => setCost(e.target.value)} placeholder="např. 1 850" required />
             <span>Kč</span>
           </div>
-          <div className="rp-hint">Nepovinné — když cenu ještě nevíte, doplníte ji později přes „Upravit hlášení“.</div>
+          <div className="rp-hint">Povinné. Cenu lze později opravit přes „Upravit hlášení“.</div>
           <label htmlFor="rp-note">Poznámka pro AGC</label>
           <input id="rp-note" value={note} onChange={(e) => setNote(e.target.value)} maxLength={500} placeholder="např. přebroušen profil, kontrola OK" />
           {error && <div className="rp-error">{error}</div>}

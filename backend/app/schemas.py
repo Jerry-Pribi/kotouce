@@ -121,9 +121,9 @@ class WheelReprofilingOut(BaseModel):
 
 
 class RepairDone(BaseModel):
-    """Firma hlásí hotovou reprofilaci (cena je nepovinná — často ji určí až faktura)."""
+    """Firma hlásí hotovou reprofilaci — cena je povinná (z ní AGC počítá úsporu)."""
     note: str | None = Field(None, max_length=500)
-    cost: float | None = Field(None, ge=0)
+    cost: float = Field(gt=0, le=10_000_000)
 
 
 class RepairFailed(BaseModel):
@@ -287,3 +287,64 @@ class RepairCompanyCreate(BaseModel):
     name: str
     username: str
     password: str
+
+
+# ---------- Analýza útrat (jen megaAdmin AGC) ----------
+
+class WheelPriceIn(BaseModel):
+    """Cena nového kotouče jednoho typu; výrobce a profil se založí, když ještě neexistují."""
+    manufacturer: str = Field(min_length=1, max_length=50)
+    diameter: int = Field(gt=0, le=5000)
+    profile: str = Field(min_length=1, max_length=20)
+    price: float = Field(gt=0, le=100_000_000)
+
+
+class WheelPriceOut(BaseModel):
+    id: int
+    manufacturer: str
+    diameter: int
+    profile: str
+    price: float
+    updated_at: datetime
+    updated_by_username: str
+    wheels: int  # kolik kotoučů tohoto typu je v evidenci
+
+
+class SavingsMonth(BaseModel):
+    month: str  # RRRR-MM
+    firm: str | None = None  # jen v firm_months
+    saved: float
+    spent: float
+    count: int
+
+
+class SavingsFirm(BaseModel):
+    name: str
+    done: int
+    failed: int
+    success_rate: float  # %
+    spent: float
+    saved: float
+    avg_cost: float | None
+    avg_days: float | None  # od odeslání z AGC po dokončení
+
+
+class MissingPrice(BaseModel):
+    manufacturer: str
+    diameter: int
+    profile: str
+    count: int
+
+
+class SavingsAnalysis(BaseModel):
+    saved: float
+    spent: float
+    new_value: float
+    done: int
+    failed: int
+    without_cost: int
+    without_price: int
+    months: list[SavingsMonth]
+    firm_months: list[SavingsMonth]  # stejné měsíce, ale zvlášť pro každou firmu
+    firms: list[SavingsFirm]
+    missing_prices: list[MissingPrice]

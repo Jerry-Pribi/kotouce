@@ -2,7 +2,7 @@
 
 Účet reprofilace patří k jednomu místu reprofilace (Lokace typu „reprofilace“).
 Vidí jen kotouče, které má právě u sebe, a historii svých reprofilací. Hlásí:
-  převzetí kotouče → reprofilace hotová (poznámka, nepovinná cena) / nelze reprofilovat.
+  převzetí kotouče → reprofilace hotová (povinná cena, poznámka) / nelze reprofilovat.
 Stav kotouče v evidenci AGC se tím nemění — kotouč zpátky převezme AGC (změna stavu na kartě kotouče).
 Export do Excelu (i s cenami) je jen tady, v části Reprofilace.
 """

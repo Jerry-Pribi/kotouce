@@ -292,3 +292,20 @@ class UsageRecord(Base):
     note: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
+
+
+class WheelPrice(Base):
+    """Cena nového kotouče daného typu (výrobce + průměr + profil) — z ní analýza počítá úsporu reprofilace."""
+
+    __tablename__ = "wheel_prices"
+    __table_args__ = (UniqueConstraint("manufacturer_id", "diameter", "profile_id", name="uq_wheel_price_type"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    manufacturer_id: Mapped[int] = mapped_column(ForeignKey("manufacturers.id"))
+    manufacturer: Mapped["Manufacturer"] = relationship()
+    diameter: Mapped[int] = mapped_column(Integer)  # mm
+    profile_id: Mapped[int] = mapped_column(ForeignKey("profiles.id"))
+    profile: Mapped["Profile"] = relationship()
+    price: Mapped[float] = mapped_column(Float)  # Kč
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
+    updated_by_username: Mapped[str] = mapped_column(String(80))

@@ -128,6 +128,21 @@ export const api = {
       body: JSON.stringify(data),
     }),
 
+  /** Analýza útrat a ceny nových kotoučů — jen megaAdmin AGC. */
+  analytics: {
+    prices: () => request<WheelPrice[]>("/api/analytics/prices"),
+    createPrice: (data: WheelPriceInput) =>
+      request<WheelPrice>("/api/analytics/prices", { method: "POST", body: JSON.stringify(data) }),
+    updatePrice: (id: number, data: WheelPriceInput) =>
+      request<WheelPrice>(`/api/analytics/prices/${id}`, { method: "PUT", body: JSON.stringify(data) }),
+    deletePrice: (id: number) => request<void>(`/api/analytics/prices/${id}`, { method: "DELETE" }),
+    exportPrices: () => download("/api/analytics/prices/export.xlsx"),
+    savings: (dateFrom?: string, dateTo?: string, firmId?: number) =>
+      request<SavingsAnalysis>(`/api/analytics/savings${periodQuery(dateFrom, dateTo, firmId)}`),
+    exportSavings: (dateFrom?: string, dateTo?: string, firmId?: number) =>
+      download(`/api/analytics/savings/export.xlsx${periodQuery(dateFrom, dateTo, firmId)}`),
+  },
+
   /** Část Reprofilace (firma, která kotouče přebrušuje) — vidí jen své kotouče. */
   repair: {
     summary: () => request<RepairSummary>("/api/repair/summary"),
@@ -135,7 +150,7 @@ export const api = {
       request<RepairWheel[]>(`/api/repair/wheels?scope=${scope}${search ? `&search=${encodeURIComponent(search)}` : ""}`),
     wheel: (id: number) => request<RepairWheel>(`/api/repair/wheels/${id}`),
     accept: (id: number) => request<RepairWheel>(`/api/repair/wheels/${id}/prevzato`, { method: "POST" }),
-    done: (id: number, data: { note?: string | null; cost?: number | null }) =>
+    done: (id: number, data: { note?: string | null; cost: number }) =>
       request<RepairWheel>(`/api/repair/wheels/${id}/hotovo`, { method: "POST", body: JSON.stringify(data) }),
     failed: (id: number, reason: string) =>
       request<RepairWheel>(`/api/repair/wheels/${id}/nelze`, { method: "POST", body: JSON.stringify({ reason }) }),
@@ -156,6 +171,15 @@ export const api = {
     },
   },
 };
+
+function periodQuery(dateFrom?: string, dateTo?: string, firmId?: number) {
+  const params = new URLSearchParams();
+  if (dateFrom) params.set("date_from", dateFrom);
+  if (dateTo) params.set("date_to", dateTo);
+  if (firmId) params.set("firm_id", String(firmId));
+  const query = params.toString();
+  return query ? `?${query}` : "";
+}
 
 /** Stažení souboru s přihlašovacím tokenem (odkaz <a> neumí poslat hlavičku). */
 async function download(path: string) {
@@ -235,4 +259,48 @@ export interface WheelCreationAudit {
   initial_location_name: string | null;
   created_by_username: string;
   created_at: string;
+}
+
+export interface WheelPriceInput {
+  manufacturer: string;
+  diameter: number;
+  profile: string;
+  price: number;
+}
+
+/** Cena nového kotouče jednoho typu (výrobce + průměr + profil). */
+export interface WheelPrice extends WheelPriceInput {
+  id: number;
+  updated_at: string;
+  updated_by_username: string;
+  /** kolik kotoučů tohoto typu je v evidenci */
+  wheels: number;
+}
+
+export interface SavingsMonth { month: string; firm?: string | null; saved: number; spent: number; count: number }
+
+export interface SavingsFirm {
+  name: string;
+  done: number;
+  failed: number;
+  success_rate: number;
+  spent: number;
+  saved: number;
+  avg_cost: number | null;
+  avg_days: number | null;
+}
+
+export interface SavingsAnalysis {
+  saved: number;
+  spent: number;
+  new_value: number;
+  done: number;
+  failed: number;
+  without_cost: number;
+  without_price: number;
+  months: SavingsMonth[];
+  /** stejné měsíce, ale zvlášť pro každou firmu */
+  firm_months: SavingsMonth[];
+  firms: SavingsFirm[];
+  missing_prices: { manufacturer: string; diameter: number; profile: string; count: number }[];
 }
