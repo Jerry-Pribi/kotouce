@@ -7,7 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import or_, select, update
 from sqlalchemy.orm import Session
 
-from . import models, schemas, crud
+from . import login_guard, models, schemas, crud
 from .database import Base, engine, get_db, SessionLocal
 from .accounts import make_accounts_router, username_scope, validate_new_account
 from .deps import bearer_scheme, get_current_user, get_session_user, require_admin, require_repair_admin
@@ -99,16 +99,8 @@ def initialize_repair_admin() -> None:
         existing = db.scalar(select(models.User).where(
             models.User.username == username, models.User.location_id == company.id
         ))
-        other_repair_users = db.scalars(select(models.User).where(
-            models.User.username == username,
-            models.User.location_id.is_not(None),
-            models.User.location_id != company.id,
-        )).all()
-        if any(verify_password(password, other.password_hash) for other in other_repair_users):
-            raise RuntimeError(
-                f"Uživatelské jméno REPAIR_ADMIN_USERNAME '{username}' je v jiné firmě reprofilace "
-                "použité se stejným heslem. Nastavte jiné heslo."
-            )
+        if existing is None and db.scalar(select(models.User.id).where(models.User.username == username)):
+            raise RuntimeError(f"Uživatelské jméno REPAIR_ADMIN_USERNAME '{username}' už používá jiný účet. Zvolte jiné.")
 
         db.execute(
             update(models.User)
@@ -137,26 +129,29 @@ initialize_repair_admin()
 def login(data: schemas.LoginRequest, request: Request, db: Session = Depends(get_db)):
     username = data.username.strip().lower()
     is_repair_portal = data.portal == "reprofilace"
-    candidates = db.scalars(select(models.User).where(
+    # Ochrana proti hádání hesel: po 5 chybách 5 minut zámek
+    key = login_guard.account_key(data.portal, None, username)
+    remaining = login_guard.seconds_locked(key)
+    if remaining:
+        raise HTTPException(429, login_guard.lock_message(remaining))
+
+    # Jméno je jedinečné v celém systému, takže se najde nejvýš jeden účet — jen v sekci, kde se přihlašuje
+    found = db.scalars(select(models.User).where(
         models.User.username == username,
         models.User.location_id.is_not(None) if is_repair_portal else models.User.location_id.is_(None),
     )).all()
-    matches = [user for user in candidates if verify_password(data.password, user.password_hash)]
-    if not matches:
-        raise HTTPException(401, "Neplatné přihlašovací údaje")
-    if len(matches) > 1:
-        raise HTTPException(409, "Tyto přihlašovací údaje odpovídají více firmám reprofilace. Kontaktujte správce.")
-    user = matches[0]
-    if not user.is_active:
-        raise HTTPException(401, "Neplatné přihlašovací údaje")
+    if len(found) > 1:
+        # Starší data, kde dvě firmy mají stejné jméno: hesla se mezi firmami neporovnávají
+        raise HTTPException(409, "Toto uživatelské jméno je v systému víckrát. Požádejte administrátora o přejmenování účtu.")
+    user = found[0] if found else None
+    if not user or not user.is_active or not verify_password(data.password, user.password_hash):
+        locked = login_guard.register_failure(key)
+        if locked:
+            raise HTTPException(429, login_guard.lock_message(locked))
+        raise HTTPException(401, "Neplatné přihlašovací údaje. Zkontrolujte, že máte nahoře vybranou správnou sekci (AGC / Reprofilace).")
     if user.location_id is not None and (user.location is None or not user.location.is_active):
         raise HTTPException(403, "Spolupráce s vaší firmou byla ukončena. Kontaktujte AGC.")
-    # Každý účet se přihlašuje ve své sekci (záložka AGC / Reprofilace na přihlašovací stránce)
-    is_repair = user.location_id is not None
-    if is_repair and data.portal != "reprofilace":
-        raise HTTPException(403, "Tento účet patří do sekce Reprofilace — přepněte se nahoře na „Reprofilace“")
-    if not is_repair and data.portal == "reprofilace":
-        raise HTTPException(403, "Účty AGC se přihlašují v sekci AGC — přepněte se nahoře na „AGC“")
+    login_guard.register_success(key)
 
     now = models.utc_now()
     token = new_session_token()
@@ -428,6 +423,8 @@ def create_wheel(data: schemas.WheelCreate, db: Session = Depends(get_db), user:
             raise HTTPException(400, "Zadejte jméno osoby, která kotouč přebírá.")
     elif data.status == models.WheelStatus.SKLAD and (not location or location.type != models.LocationType.SKLAD):
         raise HTTPException(400, "Při zařazení kotouče do skladu vyberte skladové stanoviště.")
+    elif data.status == models.WheelStatus.NA_REPROFILACI and (not location or location.type != models.LocationType.REPROFILACE):
+        raise HTTPException(400, "Vyberte firmu reprofilace, na kterou se kotouč odesílá.")
     wheel = crud.create_wheel(db, data, created_by=user)
     return crud.to_wheel_out(db, wheel)
 
@@ -524,6 +521,11 @@ def patch_wheel(wheel_id: int, data: schemas.WheelUpdate, db: Session = Depends(
     new_location = db.get(models.Location, data.location_id) if data.location_id else None
     if new_location and new_location.type == models.LocationType.REPROFILACE and not new_location.is_active:
         raise HTTPException(400, "Tato firma reprofilace už s AGC nespolupracuje.")
+    # Odeslání na reprofilaci jen s vybranou firmou — jinak by kotouč neviděla žádná firma
+    if data.status == models.WheelStatus.NA_REPROFILACI and wheel.status != models.WheelStatus.NA_REPROFILACI and (
+        not new_location or new_location.type != models.LocationType.REPROFILACE
+    ):
+        raise HTTPException(400, "Vyberte firmu reprofilace, na kterou se kotouč odesílá.")
     crud.track_reprofiling(db, wheel, wheel.status, data.status, new_location, user)
     wheel = crud.update_wheel(db, wheel, data)
     return crud.to_wheel_out(db, wheel)

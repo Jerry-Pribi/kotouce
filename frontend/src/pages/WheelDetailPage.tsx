@@ -28,6 +28,9 @@ export function WheelDetailPage() {
   const [takenByName, setTakenByName] = useState("");
   const [legacyTakenByName, setLegacyTakenByName] = useState("");
   const [checkoutSubmitting, setCheckoutSubmitting] = useState(false);
+  const [repairPanelOpen, setRepairPanelOpen] = useState(false);
+  const [repairCompanyId, setRepairCompanyId] = useState("");
+  const [repairSubmitting, setRepairSubmitting] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
 
   async function load() {
@@ -66,6 +69,7 @@ export function WheelDetailPage() {
   const lifeClass = lifePct === null ? "" : lifePct >= 100 ? "danger" : lifePct >= 85 ? "warn" : "";
   const availableReturnLines = locations.filter((location) => location.type === "linka");
   const availableStockLocations = locations.filter((location) => location.type === "sklad");
+  const availableRepairCompanies = locations.filter((location) => location.type === "reprofilace");
   const activeCycle = wheel.cycles.find((cycle) => !cycle.returned_at);
   const matchingLocations = locations.filter((location) =>
     wheel.status === "sklad" ? location.type === "sklad" && location.id !== wheel.location?.id
@@ -73,9 +77,9 @@ export function WheelDetailPage() {
         : wheel.status === "na_reprofilaci" ? location.type === "reprofilace"
           : true
   );
-  const displayedStatus: WheelStatus = checkoutPanelOpen ? "v_provozu" : returnPanelOpen ? "sklad" : wheel.status;
-  const displayedLocationId = checkoutPanelOpen ? checkoutLineId : returnPanelOpen ? returnStockId : String(wheel.location?.id ?? "");
-  const displayedLocations = checkoutPanelOpen ? availableReturnLines : returnPanelOpen ? availableStockLocations : matchingLocations;
+  const displayedStatus: WheelStatus = checkoutPanelOpen ? "v_provozu" : returnPanelOpen ? "sklad" : repairPanelOpen ? "na_reprofilaci" : wheel.status;
+  const displayedLocationId = checkoutPanelOpen ? checkoutLineId : returnPanelOpen ? returnStockId : repairPanelOpen ? repairCompanyId : String(wheel.location?.id ?? "");
+  const displayedLocations = checkoutPanelOpen ? availableReturnLines : returnPanelOpen ? availableStockLocations : repairPanelOpen ? availableRepairCompanies : matchingLocations;
   const diaryEntries = [
     ...wheel.usage_records.map((record) => ({
       key: `grinding-${record.id}`,
@@ -142,14 +146,23 @@ export function WheelDetailPage() {
   }
 
   async function handleStatusChange(newStatus: WheelStatus) {
-    if (newStatus === wheel?.status && (checkoutPanelOpen || returnPanelOpen)) {
+    if (newStatus === wheel?.status && (checkoutPanelOpen || returnPanelOpen || repairPanelOpen)) {
       setCheckoutPanelOpen(false);
       setReturnPanelOpen(false);
+      setRepairPanelOpen(false);
       setActionError(null);
       return;
     }
     setCheckoutPanelOpen(false);
     setReturnPanelOpen(false);
+    setRepairPanelOpen(false);
+    // Na reprofilaci jen s vybranou firmou (firem může být víc)
+    if (newStatus === "na_reprofilaci" && wheel?.status !== "na_reprofilaci") {
+      setRepairCompanyId(availableRepairCompanies.length === 1 ? String(availableRepairCompanies[0].id) : "");
+      setActionError(null);
+      setRepairPanelOpen(true);
+      return;
+    }
     if (wheel?.status === "sklad" && newStatus === "v_provozu") {
       setCheckoutLineId("");
       setTakenByName("");
@@ -188,6 +201,26 @@ export function WheelDetailPage() {
       setActionError(err instanceof Error ? err.message : "Vydání kotouče na linku se nepodařilo uložit.");
     } finally {
       setCheckoutSubmitting(false);
+    }
+  }
+
+  async function submitSendToRepair(event: React.FormEvent) {
+    event.preventDefault();
+    if (!wheel || !repairCompanyId) return;
+    setRepairSubmitting(true);
+    setActionError(null);
+    try {
+      const updated = await api.updateWheel(wheel.id, {
+        status: "na_reprofilaci",
+        location_id: Number(repairCompanyId),
+      });
+      setWheel({ ...wheel, ...updated });
+      setRepairPanelOpen(false);
+      await load();
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "Odeslání kotouče na reprofilaci se nepodařilo uložit.");
+    } finally {
+      setRepairSubmitting(false);
     }
   }
 
@@ -307,7 +340,7 @@ export function WheelDetailPage() {
               <select
                 value={displayedLocationId}
                 onChange={(e) => updateLocation(e.target.value)}
-                disabled={checkoutPanelOpen || returnPanelOpen || (wheel.status === "v_provozu" && Boolean(activeCycle))}
+                disabled={checkoutPanelOpen || returnPanelOpen || repairPanelOpen || (wheel.status === "v_provozu" && Boolean(activeCycle))}
                 title={wheel.status === "v_provozu" && activeCycle ? "Linka je zaznamenaná u aktivního použití kotouče." : undefined}
                 style={{ width: "100%", padding: "7px 10px", borderRadius: 4, border: "1px solid var(--border-medium)" }}
               >
@@ -358,7 +391,22 @@ export function WheelDetailPage() {
                 <button type="submit" className="btn btn-primary" disabled={returnSubmitting || !returnLineId || !returnStockId || (!activeCycle && !legacyTakenByName.trim())}>{returnSubmitting ? "Ukládám…" : "Potvrdit vrácení"}</button>
               </div>
             </form>}
-            {actionError && !returnPanelOpen && <div className="wheel-action-error" role="alert">{actionError}</div>}
+            {repairPanelOpen && <form className="wheel-return-form" onSubmit={(event) => void submitSendToRepair(event)}>
+              <strong>Odeslat kotouč na reprofilaci</strong>
+              <span>Kotouč uvidí jen vybraná firma reprofilace.</span>
+              <label htmlFor="repair-company">Na kterou firmu? *</label>
+              <select id="repair-company" value={repairCompanyId} onChange={(event) => setRepairCompanyId(event.target.value)} required>
+                <option value="">Vyberte firmu reprofilace</option>
+                {availableRepairCompanies.map((location) => <option key={location.id} value={location.id}>{location.name}</option>)}
+              </select>
+              {availableRepairCompanies.length === 0 && <small className="cycle-subtext">Zatím není žádná firma reprofilace — přidá ji megaAdmin v Administraci.</small>}
+              {actionError && <div className="wheel-action-error" role="alert">{actionError}</div>}
+              <div className="wheel-return-actions">
+                <button type="button" className="btn btn-secondary" onClick={() => { setRepairPanelOpen(false); setActionError(null); }}>Zrušit</button>
+                <button type="submit" className="btn btn-primary" disabled={repairSubmitting || !repairCompanyId}>{repairSubmitting ? "Ukládám…" : "Potvrdit odeslání"}</button>
+              </div>
+            </form>}
+            {actionError && !returnPanelOpen && !repairPanelOpen && <div className="wheel-action-error" role="alert">{actionError}</div>}
 
             {wheel.note && (
               <div style={{ background: "var(--bg-card)", padding: "10px", borderRadius: 4, border: "1px solid var(--border-light)", fontSize: "12.5px" }}>

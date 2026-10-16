@@ -16,7 +16,7 @@ from sqlalchemy.orm import Session
 
 from . import models, schemas
 from .database import get_db
-from .security import hash_password, verify_password
+from .security import hash_password
 
 ACTIVE_WINDOW_MINUTES = 2
 USERNAME_RE = r"[a-z0-9][a-z0-9_.-]{2,31}"
@@ -39,20 +39,10 @@ def validate_new_account(db: Session, username: str, password: str, org_id: int 
         raise HTTPException(400, "Uživatelské jméno musí mít 3–32 znaků (písmena bez diakritiky, čísla, . _ -)")
     if len(password) < 10:
         raise HTTPException(400, "Heslo musí mít alespoň 10 znaků")
-    # Jméno musí být jedinečné v rámci firmy. Firmy reprofilace mohou mít
-    # stejně pojmenované účty, pokud se jejich hesla liší.
-    if db.scalar(select(models.User.id).where(
-        models.User.username == username, in_org(models.User.location_id, org_id)
-    )):
-        raise HTTPException(409, "Uživatel s tímto jménem už existuje")
-    if org_id is not None:
-        other_repair_users = db.scalars(select(models.User).where(
-            models.User.username == username,
-            models.User.location_id.is_not(None),
-            models.User.location_id != org_id,
-        )).all()
-        if any(verify_password(password, other.password_hash) for other in other_repair_users):
-            raise HTTPException(409, "Stejné uživatelské jméno mohou mít různé firmy reprofilace jen s odlišným heslem")
+    # Jméno je jedinečné v celém systému (AGC i všechny firmy) — přihlášení podle něj najde
+    # jediný účet, takže se nikdy neporovnávají hesla účtů různých firem.
+    if db.scalar(select(models.User.id).where(models.User.username == username)):
+        raise HTTPException(409, "Uživatelské jméno už je obsazené, zvolte jiné")
     return username
 
 
@@ -100,14 +90,6 @@ def make_accounts_router(prefix: str, require_admin: Callable[..., models.User],
         check_manage(user, admin, "Heslo")
         if len(data.password) < 10:
             raise HTTPException(400, "Heslo musí mít alespoň 10 znaků")
-        if user.location_id is not None:
-            other_repair_users = db.scalars(select(models.User).where(
-                models.User.username == user.username,
-                models.User.location_id.is_not(None),
-                models.User.location_id != user.location_id,
-            )).all()
-            if any(verify_password(data.password, other.password_hash) for other in other_repair_users):
-                raise HTTPException(409, "Stejné uživatelské jméno mohou mít různé firmy reprofilace jen s odlišným heslem")
         user.password_hash = hash_password(data.password)
         for session in user.sessions:
             if session.ended_at is None:
@@ -123,17 +105,8 @@ def make_accounts_router(prefix: str, require_admin: Callable[..., models.User],
         username = data.username.strip().lower()
         if not re.fullmatch(USERNAME_RE, username):
             raise HTTPException(400, "Uživatelské jméno musí mít 3–32 znaků (písmena bez diakritiky, čísla, . _ -)")
-        if db.scalar(select(models.User.id).where(
-            models.User.username == username, models.User.id != user.id,
-            in_org(models.User.location_id, admin.location_id),
-        )):
-            raise HTTPException(409, "Uživatel s tímto jménem už existuje")
-        if admin.location_id is not None and db.scalar(select(models.User.id).where(
-            models.User.username == username,
-            models.User.location_id.is_not(None),
-            models.User.location_id != admin.location_id,
-        )):
-            raise HTTPException(409, "Toto jméno už používá jiná firma reprofilace; při změně jména zvolte jiné")
+        if db.scalar(select(models.User.id).where(models.User.username == username, models.User.id != user.id)):
+            raise HTTPException(409, "Uživatelské jméno už je obsazené, zvolte jiné")
         user.username = username
         for session in user.sessions:
             session.username = username
